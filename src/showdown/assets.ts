@@ -4,6 +4,7 @@ import { publicAssetUrl } from "../render/publicAssetUrl";
 import type { AssetSource } from "../render/types";
 
 const TYPE_SHEET = publicAssetUrl("/assets/ui/types.png");
+const MOVE_CATEGORY_SHEET = publicAssetUrl("/assets/ui/move-categories.png");
 const TYPE_FRAMES: Record<string, { x: number; y: number }> = {
   normal: { x: 0, y: 0 },
   fighting: { x: 32, y: 0 },
@@ -22,6 +23,11 @@ const TYPE_FRAMES: Record<string, { x: number; y: number }> = {
   ice: { x: 96, y: 48 },
   dragon: { x: 0, y: 64 },
   dark: { x: 32, y: 64 },
+};
+const MOVE_CATEGORY_FRAMES: Record<string, { x: number; y: number }> = {
+  special: { x: 0, y: 0 },
+  physical: { x: 32, y: 0 },
+  status: { x: 64, y: 0 },
 };
 
 function localizeShowdownUrl(url: string): string {
@@ -65,6 +71,16 @@ export const showdownAssets = {
     return {
       url: TYPE_SHEET,
       frame: { ...frame, width: 32, height: 15 },
+    };
+  },
+
+  moveCategoryIcon(category: string): AssetSource {
+    const frame = MOVE_CATEGORY_FRAMES[category.toLowerCase()];
+    if (!frame)
+      throw new Error(`No local move category icon exists for ${category}.`);
+    return {
+      url: MOVE_CATEGORY_SHEET,
+      frame: { ...frame, width: 32, height: 14 },
     };
   },
 };

@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import { BitmapFontRenderer } from "./BitmapFontRenderer";
 import {
   POKEMON_NAME_FONT,
+  MOVE_OVERVIEW_TEMPLATE,
   POKEMON_NAME_TEMPLATE,
   POKEMON_SPOTLIGHT_SMALL_TEMPLATE,
   POKEMON_SPOTLIGHT_TEMPLATE,
   POKEMON_PANEL_TEMPLATE,
+  SMALL_FONT,
   STAT_PREVIEW_TEMPLATE,
   TEAM_PREVIEW_TEMPLATE,
   TEMPLATES,
@@ -26,6 +28,22 @@ describe("render templates", () => {
     expect(TEMPLATES.get(POKEMON_SPOTLIGHT_SMALL_TEMPLATE.id)).toBe(
       POKEMON_SPOTLIGHT_SMALL_TEMPLATE,
     );
+    expect(TEMPLATES.get(MOVE_OVERVIEW_TEMPLATE.id)).toBe(
+      MOVE_OVERVIEW_TEMPLATE,
+    );
+  });
+
+  it("matches the native move overview asset dimensions", () => {
+    expect(MOVE_OVERVIEW_TEMPLATE).toMatchObject({
+      kind: "move-overview",
+      width: 399,
+      height: 34,
+      filenameSuffix: "move",
+      typeIcon: { x: 10, y: 10 },
+      categoryIcon: { x: 46, y: 11 },
+      statTextRight: 391,
+      statTextGap: 6,
+    });
   });
 
   it("matches the native small Pokémon spotlight asset dimensions", () => {
@@ -80,6 +98,30 @@ describe("render templates", () => {
       width: 199,
       height: 100,
       filenameSuffix: "stat-preview",
+    });
+  });
+
+  it("registers the shiny marker in the small bitmap font", () => {
+    expect(
+      SMALL_FONT.glyphs.find((glyph) => glyph.token === "★"),
+    ).toMatchObject({
+      x: 260,
+      width: 6,
+      height: 16,
+    });
+  });
+
+  it("registers the added small-font punctuation glyphs", () => {
+    expect(
+      Object.fromEntries(
+        SMALL_FONT.glyphs
+          .filter((glyph) => ["/", "%", "'"].includes(glyph.token))
+          .map((glyph) => [glyph.token, [glyph.x, glyph.width]]),
+      ),
+    ).toEqual({
+      "/": [267, 4],
+      "%": [272, 6],
+      "'": [279, 3],
     });
   });
 

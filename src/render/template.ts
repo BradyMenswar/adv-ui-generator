@@ -17,6 +17,9 @@ const pokemonSpotlightBackgroundUrl = publicAssetUrl(
 const pokemonSpotlightSmallBackgroundUrl = publicAssetUrl(
   "/assets/ui/pokemon-spotlight-small.png",
 );
+const moveOverviewBackgroundUrl = publicAssetUrl(
+  "/assets/ui/move-overview.png",
+);
 
 function glyphs(
   tokens: string[],
@@ -78,7 +81,22 @@ export const SMALL_FONT: BitmapFontDefinition = {
   sheetUrl: smallFontUrl,
   glyphs: [
     ...glyphs(
-      [...alphabet, ..."0123456789", "!", "?", ".", "Lv", "♂", "♀", "+", "-"],
+      [
+        ...alphabet,
+        ..."0123456789",
+        "!",
+        "?",
+        ".",
+        "Lv",
+        "♂",
+        "♀",
+        "+",
+        "-",
+        "★",
+        "/",
+        "%",
+        "'",
+      ],
       [
         [0, 4],
         [6, 10],
@@ -124,6 +142,10 @@ export const SMALL_FONT: BitmapFontDefinition = {
         [241, 245],
         [247, 252],
         [254, 258],
+        [260, 265],
+        [267, 270],
+        [272, 277],
+        [279, 281],
       ],
       0,
     ),
@@ -321,6 +343,32 @@ export const POKEMON_SPOTLIGHT_SMALL_TEMPLATE: TemplateDefinition = {
   icon: { x: 2, y: 9 },
 };
 
+export const MOVE_OVERVIEW_TEMPLATE: TemplateDefinition = {
+  id: "adv-move-overview",
+  label: "Move overview",
+  kind: "move-overview",
+  width: 399,
+  height: 34,
+  filenameSuffix: "move",
+  background: { url: moveOverviewBackgroundUrl },
+  typeIcon: { x: 10, y: 10 },
+  categoryIcon: { x: 46, y: 11 },
+  statTextRight: 391,
+  statTextGap: 6,
+  text: {
+    name: { x: 84, y: 1, maxWidth: 193, size: 16, color: 0xffffff },
+    description: { x: 84, y: 11, maxWidth: 304, size: 8, color: 0xffffff },
+    stat: {
+      x: 0,
+      y: 1,
+      maxWidth: 0,
+      size: 8,
+      color: 0xffffff,
+      align: "right",
+    },
+  },
+};
+
 export const TEMPLATES = new Map<string, TemplateDefinition>([
   [POKEMON_PANEL_TEMPLATE.id, POKEMON_PANEL_TEMPLATE],
   [STAT_PREVIEW_TEMPLATE.id, STAT_PREVIEW_TEMPLATE],
@@ -328,4 +376,5 @@ export const TEMPLATES = new Map<string, TemplateDefinition>([
   [POKEMON_NAME_TEMPLATE.id, POKEMON_NAME_TEMPLATE],
   [POKEMON_SPOTLIGHT_TEMPLATE.id, POKEMON_SPOTLIGHT_TEMPLATE],
   [POKEMON_SPOTLIGHT_SMALL_TEMPLATE.id, POKEMON_SPOTLIGHT_SMALL_TEMPLATE],
+  [MOVE_OVERVIEW_TEMPLATE.id, MOVE_OVERVIEW_TEMPLATE],
 ]);

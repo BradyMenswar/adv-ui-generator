@@ -16,9 +16,16 @@ import {
 import { showdownAssets } from "../showdown/assets";
 import { ADV_DEX } from "../showdown/team";
 import { BitmapFontRenderer } from "./BitmapFontRenderer";
+import {
+  moveDescriptionText,
+  maximumMovePp,
+  rightAlignedMoveStats,
+  smallFontText,
+} from "./moveText";
 import { showdownStatBarScale } from "./statBarScale";
 import {
   LARGE_FONT,
+  MOVE_OVERVIEW_TEMPLATE,
   POKEMON_NAME_FONT,
   POKEMON_PANEL_TEMPLATE,
   SMALL_FONT,
@@ -37,6 +44,7 @@ import type {
   PokemonNameTemplateDefinition,
   PokemonSpotlightSmallTemplateDefinition,
   PokemonSpotlightTemplateDefinition,
+  MoveOverviewTemplateDefinition,
 } from "./types";
 
 const ADV = new Generations(Dex).get(3);
@@ -55,8 +63,8 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-function normalizedPanelText(value: string): string {
-  return value.replace(/[-'’:]/g, " ");
+function normalizedLargeText(value: string): string {
+  return value.replace(/[-'’:]/g, "");
 }
 
 function createStatBar(
@@ -112,6 +120,11 @@ export class PanelRenderer {
     if (!template) throw new Error(`Unknown template: ${options.templateId}`);
     if (template.kind === "team-preview") {
       throw new Error("The team preview must be rendered from the whole team.");
+    }
+    if (template.kind === "move-overview") {
+      throw new Error(
+        "Move overviews must be rendered from an individual move.",
+      );
     }
 
     if (template.kind === "pokemon-name") {
@@ -197,6 +210,34 @@ export class PanelRenderer {
     });
   }
 
+  async renderMove(
+    set: Partial<PokemonSet>,
+    sourceSetIndex: number,
+    moveName: string,
+    moveIndex: number,
+    options: Omit<RenderOptions, "templateId">,
+  ): Promise<RenderedPanel> {
+    await this.init();
+    if (MOVE_OVERVIEW_TEMPLATE.kind !== "move-overview") {
+      throw new Error("The move overview template is unavailable.");
+    }
+
+    const move = ADV_DEX.moves.get(moveName);
+    if (!move.exists) throw new Error(`Move ${moveName} was not found.`);
+    const stage = await this.createMoveOverview(
+      moveName,
+      MOVE_OVERVIEW_TEMPLATE,
+    );
+    const species = ADV_DEX.species.get(set.species ?? "");
+    return this.exportPanel(stage, MOVE_OVERVIEW_TEMPLATE, options.scale, {
+      sourceSetIndex,
+      set,
+      speciesId: species.id,
+      label: move.name,
+      filenameStem: `${String(sourceSetIndex + 1).padStart(2, "0")}-${species.id}-move-${String(moveIndex + 1).padStart(2, "0")}-${move.id}`,
+    });
+  }
+
   private async exportPanel(
     stage: Container,
     dimensions: { width: number; height: number },
@@ -276,7 +317,7 @@ export class PanelRenderer {
 
     stage.addChild(
       await this.largeFont.create(
-        normalizedPanelText(teamName),
+        normalizedLargeText(teamName),
         template.text.name,
       ),
     );
@@ -304,7 +345,7 @@ export class PanelRenderer {
   ): Promise<{ stage: Container; width: number }> {
     const stage = new Container();
     const species = ADV.species.get(set.species ?? "");
-    const displayName = normalizedPanelText(
+    const displayName = normalizedLargeText(
       set.name || species?.name || set.species || "UNKNOWN",
     );
     const textWidth = this.pokemonNameFont.measure(displayName);
@@ -447,12 +488,15 @@ export class PanelRenderer {
 
     const gender = set.gender || species?.gender;
     const genderSymbol = gender === "M" ? "♂" : gender === "F" ? "♀" : "";
-    const displayName = normalizedPanelText(
+    const nameMarkers = [genderSymbol, set.shiny ? "★" : ""].filter(Boolean);
+    const displayName = smallFontText(
       set.name || species?.name || set.species || "",
     );
     stage.addChild(
       await this.font.create(
-        genderSymbol ? `${displayName} ${genderSymbol}` : displayName,
+        nameMarkers.length
+          ? `${displayName} ${nameMarkers.join(" ")}`
+          : displayName,
         template.text.name,
       ),
     );
@@ -462,13 +506,13 @@ export class PanelRenderer {
     );
     stage.addChild(
       await this.font.create(
-        normalizedPanelText(set.ability || "NO ABILITY"),
+        smallFontText(set.ability || "NO ABILITY"),
         template.text.ability,
       ),
     );
     stage.addChild(
       await this.font.create(
-        normalizedPanelText(set.item || "NO ITEM"),
+        smallFontText(set.item || "NO ITEM"),
         template.text.item,
       ),
     );
@@ -478,7 +522,7 @@ export class PanelRenderer {
       if (!move) continue;
       stage.addChild(
         await this.font.create(
-          normalizedPanelText(move),
+          smallFontText(move),
           shiftedSlot(
             template.text.move,
             template.text.move.x,
@@ -514,6 +558,71 @@ export class PanelRenderer {
         );
       }
     }
+
+    return stage;
+  }
+
+  private async createMoveOverview(
+    moveName: string,
+    template: MoveOverviewTemplateDefinition,
+  ): Promise<Container> {
+    const stage = new Container();
+    if (template.background) {
+      stage.addChild(await this.createAssetSprite(template.background));
+    }
+
+    const move = ADV_DEX.moves.get(moveName);
+    const typeIcon = await this.createAssetSprite(
+      showdownAssets.typeIcon(move.type),
+    );
+    typeIcon.x = template.typeIcon.x;
+    typeIcon.y = template.typeIcon.y;
+
+    const categoryIcon = await this.createAssetSprite(
+      showdownAssets.moveCategoryIcon(move.category),
+    );
+    categoryIcon.x = template.categoryIcon.x;
+    categoryIcon.y = template.categoryIcon.y;
+
+    const accuracy = move.accuracy === true ? 100 : move.accuracy;
+    const accuracyText = `ACC ${accuracy}`;
+    const ppText = `PP ${maximumMovePp(move.pp, move.noPPBoosts)}`;
+    const powerText = move.basePower > 0 ? `POWER ${move.basePower}` : "";
+    const accuracyWidth = this.font.measure(accuracyText);
+    const ppWidth = this.font.measure(ppText);
+    const powerWidth = this.font.measure(powerText);
+    const statPositions = rightAlignedMoveStats(
+      { power: powerWidth, pp: ppWidth, accuracy: accuracyWidth },
+      template.statTextRight,
+      template.statTextGap,
+    );
+    const statSlot = (left: number, width: number): TextSlot => ({
+      ...template.text.stat,
+      x: left,
+      maxWidth: width,
+    });
+
+    stage.addChild(
+      typeIcon,
+      categoryIcon,
+      await this.largeFont.create(
+        normalizedLargeText(move.name),
+        template.text.name,
+      ),
+      await this.font.create(
+        smallFontText(moveDescriptionText(move.shortDesc, move.desc)),
+        template.text.description,
+      ),
+      await this.font.create(
+        powerText,
+        statSlot(statPositions.power, powerWidth),
+      ),
+      await this.font.create(ppText, statSlot(statPositions.pp, ppWidth)),
+      await this.font.create(
+        accuracyText,
+        statSlot(statPositions.accuracy, accuracyWidth),
+      ),
+    );
 
     return stage;
   }
@@ -586,7 +695,7 @@ export class PanelRenderer {
 
     stage.addChild(
       await this.font.create(
-        normalizedPanelText(nature?.name ?? set.nature ?? "SERIOUS"),
+        normalizedLargeText(nature?.name ?? set.nature ?? "SERIOUS"),
         template.text.nature,
       ),
     );

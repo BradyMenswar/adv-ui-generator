@@ -105,13 +105,27 @@ export interface PokemonSpotlightSmallTemplateDefinition extends BaseTemplateDef
   icon: Point;
 }
 
+export interface MoveOverviewTemplateDefinition extends BaseTemplateDefinition {
+  kind: "move-overview";
+  typeIcon: Point;
+  categoryIcon: Point;
+  statTextRight: number;
+  statTextGap: number;
+  text: {
+    name: TextSlot;
+    description: TextSlot;
+    stat: TextSlot;
+  };
+}
+
 export type TemplateDefinition =
   | PokemonOverviewTemplateDefinition
   | StatPreviewTemplateDefinition
   | TeamPreviewTemplateDefinition
   | PokemonNameTemplateDefinition
   | PokemonSpotlightTemplateDefinition
-  | PokemonSpotlightSmallTemplateDefinition;
+  | PokemonSpotlightSmallTemplateDefinition
+  | MoveOverviewTemplateDefinition;
 
 export interface BitmapGlyph {
   token: string;

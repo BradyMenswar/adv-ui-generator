@@ -120,4 +120,25 @@ describe("Showdown asset adapter", () => {
       height: 15,
     });
   });
+
+  it("uses the three local move category frames", () => {
+    expect(showdownAssets.moveCategoryIcon("Physical").frame).toEqual({
+      x: 32,
+      y: 0,
+      width: 32,
+      height: 14,
+    });
+    expect(showdownAssets.moveCategoryIcon("Special").frame).toEqual({
+      x: 0,
+      y: 0,
+      width: 32,
+      height: 14,
+    });
+    expect(showdownAssets.moveCategoryIcon("Status").frame).toEqual({
+      x: 64,
+      y: 0,
+      width: 32,
+      height: 14,
+    });
+  });
 });

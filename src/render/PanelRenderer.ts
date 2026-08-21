@@ -25,11 +25,13 @@ import {
 } from "./moveText";
 import { showdownStatBarScale } from "./statBarScale";
 import {
-  LARGE_FONT,
+  GENERIC_TEXT_TEMPLATE,
   MOVE_OVERVIEW_TEMPLATE,
   POKEMON_NAME_FONT,
   POKEMON_PANEL_TEMPLATE,
   SMALL_FONT,
+  TITLE_FONT,
+  TITLE_TEMPLATE,
   TEMPLATES,
 } from "./template";
 import type {
@@ -42,6 +44,8 @@ import type {
   StatPreviewTemplateDefinition,
   TeamPreviewTemplateDefinition,
   TextSlot,
+  DynamicLabelTemplateDefinition,
+  GenericTextTemplateDefinition,
   PokemonOverviewTemplateDefinition,
   PokemonNameTemplateDefinition,
   PokemonSpotlightSmallTemplateDefinition,
@@ -90,8 +94,8 @@ function createStatBar(
 export class PanelRenderer {
   private readonly app = new Application();
   private readonly font = new BitmapFontRenderer(SMALL_FONT);
-  private readonly largeFont = new BitmapFontRenderer(LARGE_FONT);
-  private readonly pokemonNameFont = new BitmapFontRenderer(POKEMON_NAME_FONT);
+  private readonly compactLargeFont = new BitmapFontRenderer(POKEMON_NAME_FONT);
+  private readonly titleFont = new BitmapFontRenderer(TITLE_FONT);
   private initialized = false;
 
   async init(): Promise<void> {
@@ -127,6 +131,12 @@ export class PanelRenderer {
       throw new Error(
         "Move overviews must be rendered from an individual move.",
       );
+    }
+    if (template.kind === "title") {
+      throw new Error("Custom titles must be rendered from title text.");
+    }
+    if (template.kind === "generic-text") {
+      throw new Error("Generic text must be rendered from standalone text.");
     }
 
     if (template.kind === "pokemon-name") {
@@ -240,6 +250,100 @@ export class PanelRenderer {
     });
   }
 
+  async renderTitle(
+    title: string,
+    options: Omit<RenderOptions, "templateId">,
+  ): Promise<RenderedPanel> {
+    await this.init();
+    if (TITLE_TEMPLATE.kind !== "title") {
+      throw new Error("The custom title template is unavailable.");
+    }
+
+    const displayTitle = title.trim() || "UNTITLED";
+    const filenameTitle =
+      displayTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "untitled";
+    const label = await this.createDynamicLabel(
+      displayTitle,
+      TITLE_TEMPLATE,
+      this.titleFont,
+    );
+    return this.exportPanel(
+      label.stage,
+      { width: label.width, height: TITLE_TEMPLATE.height },
+      options.scale,
+      {
+        sourceSetIndex: 0,
+        set: {},
+        speciesId: "title",
+        label: displayTitle,
+        filenameStem: `${filenameTitle}-title`,
+      },
+    );
+  }
+
+  async renderGenericText(
+    text: string,
+    requestedWidth: number | "auto",
+    options: Omit<RenderOptions, "templateId">,
+  ): Promise<RenderedPanel> {
+    await this.init();
+    if (GENERIC_TEXT_TEMPLATE.kind !== "generic-text") {
+      throw new Error("The generic text template is unavailable.");
+    }
+
+    const displayText =
+      text
+        .trim()
+        .split(/\r?\n/)
+        .map((line) => smallFontText(line))
+        .join("\n") || "NO TEXT";
+    const autoWidth = requestedWidth === "auto";
+    const panelInset =
+      2 * (GENERIC_TEXT_TEMPLATE.borderSize + GENERIC_TEXT_TEMPLATE.padding);
+    const measuredWidth = Math.max(
+      ...displayText.split("\n").map((line) => this.font.measure(line)),
+    );
+    const width = autoWidth
+      ? Math.max(GENERIC_TEXT_TEMPLATE.minWidth, measuredWidth + panelInset)
+      : Math.min(
+          GENERIC_TEXT_TEMPLATE.maxWidth,
+          Math.max(GENERIC_TEXT_TEMPLATE.minWidth, Math.round(requestedWidth)),
+        );
+    if (width > GENERIC_TEXT_TEMPLATE.maxWidth) {
+      throw new Error(
+        `The longest line exceeds the ${GENERIC_TEXT_TEMPLATE.maxWidth}px auto-width limit.`,
+      );
+    }
+    const panel = await this.createGenericText(
+      displayText,
+      width,
+      GENERIC_TEXT_TEMPLATE,
+      autoWidth,
+    );
+    const filenameText =
+      displayText
+        .slice(0, 40)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "generic-text";
+
+    return this.exportPanel(
+      panel.stage,
+      { width, height: panel.height },
+      options.scale,
+      {
+        sourceSetIndex: 0,
+        set: {},
+        speciesId: "generic-text",
+        label: displayText.replace(/\n/g, " "),
+        filenameStem: `${filenameText}-text`,
+      },
+    );
+  }
+
   private async exportPanel(
     stage: Container,
     dimensions: { width: number; height: number },
@@ -318,7 +422,7 @@ export class PanelRenderer {
     }
 
     stage.addChild(
-      await this.largeFont.create(
+      await this.compactLargeFont.create(
         normalizedLargeText(teamName),
         template.text.name,
       ),
@@ -345,14 +449,22 @@ export class PanelRenderer {
     set: Partial<PokemonSet>,
     template: PokemonNameTemplateDefinition,
   ): Promise<{ stage: Container; width: number }> {
-    const stage = new Container();
     const species = ADV.species.get(set.species ?? "");
     const displayName = normalizedLargeText(
       set.name || species?.name || set.species || "UNKNOWN",
     );
-    const textWidth = this.pokemonNameFont.measure(displayName);
+    return this.createDynamicLabel(displayName, template);
+  }
+
+  private async createDynamicLabel(
+    displayText: string,
+    template: DynamicLabelTemplateDefinition,
+    font = this.compactLargeFont,
+  ): Promise<{ stage: Container; width: number }> {
+    const stage = new Container();
+    const textWidth = font.measure(displayText);
     const width = Math.max(
-      template.capWidth * 2,
+      template.minWidth,
       textWidth + template.capWidth * 2 + template.paddingX * 2,
     );
 
@@ -370,7 +482,7 @@ export class PanelRenderer {
     stage.addChild(background);
 
     stage.addChild(
-      await this.pokemonNameFont.create(displayName, {
+      await font.create(displayText, {
         x: template.capWidth + template.paddingX,
         y: template.textY,
         maxWidth: textWidth,
@@ -380,6 +492,51 @@ export class PanelRenderer {
     );
 
     return { stage, width };
+  }
+
+  private async createGenericText(
+    displayText: string,
+    width: number,
+    template: GenericTextTemplateDefinition,
+    preserveLineBreaks = false,
+  ): Promise<{ stage: Container; height: number }> {
+    const stage = new Container();
+    const textWidth = width - 2 * (template.borderSize + template.padding);
+    const lines = preserveLineBreaks
+      ? displayText.split("\n")
+      : this.font.wrap(displayText, textWidth);
+    const height =
+      template.borderSize * 2 +
+      template.padding * 2 +
+      template.glyphHeight +
+      Math.max(0, lines.length - 1) * template.lineHeight;
+
+    const texture = await Assets.load<Texture>(template.background.url);
+    texture.source.scaleMode = "nearest";
+    const background = new NineSliceSprite({
+      texture,
+      leftWidth: template.borderSize,
+      rightWidth: template.borderSize,
+      topHeight: template.borderSize,
+      bottomHeight: template.borderSize,
+    });
+    background.width = width;
+    background.height = height;
+    stage.addChild(background);
+
+    for (const [lineIndex, line] of lines.entries()) {
+      stage.addChild(
+        await this.font.create(line, {
+          x: template.borderSize + template.padding,
+          y: template.textOffsetY + lineIndex * template.lineHeight,
+          maxWidth: textWidth,
+          size: 8,
+          color: 0xffffff,
+        }),
+      );
+    }
+
+    return { stage, height };
   }
 
   private async createPokemonSpotlight(
@@ -607,7 +764,7 @@ export class PanelRenderer {
     stage.addChild(
       typeIcon,
       categoryIcon,
-      await this.largeFont.create(
+      await this.compactLargeFont.create(
         normalizedLargeText(move.name),
         template.text.name,
       ),

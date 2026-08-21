@@ -11,6 +11,7 @@ const panelBackgroundUrl = publicAssetUrl("/assets/ui/pokemon-overview.png");
 const statPreviewBackgroundUrl = publicAssetUrl("/assets/ui/stat-preview.png");
 const teamPreviewBackgroundUrl = publicAssetUrl("/assets/ui/team-preview.png");
 const pokemonNameBackgroundUrl = publicAssetUrl("/assets/ui/pokemon-name.png");
+const genericTextBackgroundUrl = publicAssetUrl("/assets/ui/generic-text.png");
 const pokemonSpotlightBackgroundUrl = publicAssetUrl(
   "/assets/ui/pokemon-spotlight.png",
 );
@@ -24,47 +25,197 @@ const moveOverviewBackgroundUrl = publicAssetUrl(
 function glyphs(
   tokens: string[],
   bounds: Array<[number, number]>,
-  letterSpacing = 1,
+  options: {
+    y: number;
+    height: number;
+    offsetY?: number;
+    letterSpacing?: number;
+  },
 ): BitmapGlyph[] {
   return tokens.map((token, index) => {
     const [x, lastX] = bounds[index];
     const width = lastX - x + 1;
-    return { token, x, width, height: 16, advance: width + letterSpacing };
+    return {
+      token,
+      x,
+      y: options.y,
+      offsetY: options.offsetY ?? 8,
+      width,
+      height: options.height,
+      advance: width + (options.letterSpacing ?? 1),
+    };
   });
 }
 
 const alphabet = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
+const lowercaseAlphabet = [..."abcdefghijklmnopqrstuvwxyz"];
+
+const largeGlyphs: BitmapGlyph[] = [
+  ...glyphs(
+    [..."0123456789!?.-_"],
+    [
+      [1, 8],
+      [11, 17],
+      [20, 27],
+      [30, 37],
+      [40, 47],
+      [50, 57],
+      [60, 67],
+      [70, 77],
+      [80, 87],
+      [90, 97],
+      [100, 104],
+      [107, 114],
+      [117, 120],
+      [123, 129],
+      [132, 134],
+    ],
+    { y: 0, height: 8 },
+  ),
+  ...glyphs(
+    ['"', "“", "”", "‘", "’", "♂", "♀", "¥", ",", "×", "/"],
+    [
+      [1, 6],
+      [9, 14],
+      [17, 22],
+      [25, 28],
+      [31, 34],
+      [37, 42],
+      [45, 50],
+      [53, 60],
+      [63, 65],
+      [68, 73],
+      [76, 83],
+    ],
+    { y: 13, height: 8 },
+  ),
+  ...glyphs(
+    alphabet.slice(0, 16),
+    [
+      [1, 8],
+      [11, 18],
+      [21, 28],
+      [31, 38],
+      [41, 48],
+      [51, 58],
+      [61, 68],
+      [71, 78],
+      [81, 87],
+      [90, 97],
+      [100, 107],
+      [110, 116],
+      [119, 126],
+      [129, 136],
+      [139, 146],
+      [149, 156],
+    ],
+    { y: 26, height: 8 },
+  ),
+  ...glyphs(
+    alphabet.slice(16),
+    [
+      [1, 8],
+      [11, 18],
+      [21, 28],
+      [30, 36],
+      [39, 46],
+      [49, 56],
+      [59, 66],
+      [69, 76],
+      [79, 85],
+      [88, 95],
+    ],
+    { y: 40, height: 8 },
+  ),
+  ...glyphs(
+    lowercaseAlphabet.slice(0, 18),
+    [
+      [1, 7],
+      [10, 16],
+      [19, 25],
+      [28, 34],
+      [37, 43],
+      [46, 51],
+      [54, 60],
+      [63, 69],
+      [72, 74],
+      [76, 82],
+      [85, 91],
+      [94, 97],
+      [100, 107],
+      [110, 116],
+      [119, 125],
+      [128, 134],
+      [137, 143],
+      [146, 151],
+    ],
+    { y: 54, height: 7 },
+  ),
+  ...glyphs(
+    [...lowercaseAlphabet.slice(18), "▶", ":"],
+    [
+      [1, 6],
+      [9, 13],
+      [16, 22],
+      [25, 31],
+      [34, 41],
+      [44, 51],
+      [54, 60],
+      [63, 69],
+      [72, 77],
+      [80, 81],
+    ],
+    { y: 65, height: 8 },
+  ),
+  ...glyphs(
+    [..."ÄÖÜäöü"],
+    [
+      [1, 8],
+      [11, 18],
+      [21, 28],
+      [31, 37],
+      [40, 46],
+      [49, 55],
+    ],
+    { y: 79, height: 8, offsetY: 6 },
+  ),
+];
+
+function aliases(
+  tokens: string[],
+  sourceToken: string,
+  sourceGlyphs: BitmapGlyph[],
+): BitmapGlyph[] {
+  const source = sourceGlyphs.find((glyph) => glyph.token === sourceToken);
+  if (!source) return [];
+  return tokens.map((token) => ({ ...source, token }));
+}
+
+function adjustLowercaseAndDigitBaseline(
+  glyphsToAdjust: BitmapGlyph[],
+  alignedLowercaseRows: number[] = [],
+): BitmapGlyph[] {
+  return glyphsToAdjust.map((glyph) => {
+    const isSingleCharacter = [...glyph.token].length === 1;
+    const isLowercase = isSingleCharacter && /\p{Ll}/u.test(glyph.token);
+    const isDigit = isSingleCharacter && /\p{N}/u.test(glyph.token);
+    const lowercaseAlreadyAligned =
+      isLowercase && alignedLowercaseRows.includes(glyph.y ?? 0);
+    return (isLowercase || isDigit) && !lowercaseAlreadyAligned
+      ? { ...glyph, offsetY: (glyph.offsetY ?? 0) + 1 }
+      : glyph;
+  });
+}
+
+const adjustedLargeGlyphs = adjustLowercaseAndDigitBaseline(largeGlyphs, [65]);
 
 export const LARGE_FONT: BitmapFontDefinition = {
   sheetUrl: largeFontUrl,
-  glyphs: glyphs(alphabet, [
-    [0, 7],
-    [10, 17],
-    [20, 27],
-    [30, 37],
-    [40, 47],
-    [50, 57],
-    [60, 67],
-    [70, 77],
-    [80, 86],
-    [89, 96],
-    [99, 106],
-    [109, 115],
-    [118, 125],
-    [128, 135],
-    [138, 145],
-    [148, 155],
-    [157, 164],
-    [167, 174],
-    [177, 184],
-    [186, 192],
-    [195, 202],
-    [205, 212],
-    [215, 222],
-    [225, 232],
-    [235, 241],
-    [244, 251],
-  ]),
+  glyphs: [
+    ...adjustedLargeGlyphs,
+    ...aliases(["'"], "’", adjustedLargeGlyphs),
+    ...aliases(["$", "₽"], "¥", adjustedLargeGlyphs),
+  ],
   lineHeight: 16,
   fallbackGlyph: "?",
 };
@@ -77,78 +228,243 @@ export const POKEMON_NAME_FONT: BitmapFontDefinition = {
   })),
 };
 
+export const TITLE_FONT: BitmapFontDefinition = {
+  ...POKEMON_NAME_FONT,
+  textTransform: "preserve",
+};
+
+const smallGlyphs: BitmapGlyph[] = [
+  ...glyphs(
+    [
+      ..."0123456789!?.-_",
+      '"',
+      "“",
+      "”",
+      "‘",
+      "’",
+      "♂",
+      "♀",
+      "¥",
+      ",",
+      "×",
+      "/",
+    ],
+    [
+      [0, 4],
+      [7, 10],
+      [12, 16],
+      [18, 22],
+      [24, 28],
+      [30, 34],
+      [36, 40],
+      [42, 46],
+      [48, 52],
+      [54, 58],
+      [61, 62],
+      [65, 69],
+      [72, 74],
+      [77, 81],
+      [84, 86],
+      [89, 93],
+      [95, 99],
+      [101, 105],
+      [108, 110],
+      [114, 116],
+      [119, 123],
+      [125, 129],
+      [133, 137],
+      [141, 143],
+      [147, 152],
+      [155, 159],
+    ],
+    { y: 0, height: 11, offsetY: 5, letterSpacing: 0 },
+  ),
+  ...glyphs(
+    alphabet,
+    [
+      [0, 4],
+      [6, 10],
+      [12, 16],
+      [18, 22],
+      [24, 28],
+      [30, 34],
+      [36, 40],
+      [42, 46],
+      [48, 51],
+      [53, 57],
+      [59, 63],
+      [65, 69],
+      [71, 75],
+      [77, 81],
+      [83, 87],
+      [89, 93],
+      [95, 99],
+      [101, 105],
+      [107, 111],
+      [113, 116],
+      [118, 122],
+      [124, 128],
+      [130, 134],
+      [136, 140],
+      [142, 145],
+      [147, 151],
+    ],
+    { y: 15, height: 8, letterSpacing: 0 },
+  ),
+  ...glyphs(
+    lowercaseAlphabet,
+    [
+      [0, 4],
+      [6, 10],
+      [12, 16],
+      [18, 22],
+      [24, 28],
+      [30, 34],
+      [36, 40],
+      [42, 46],
+      [49, 50],
+      [53, 56],
+      [59, 63],
+      [66, 67],
+      [70, 74],
+      [76, 80],
+      [82, 86],
+      [88, 92],
+      [94, 98],
+      [100, 104],
+      [106, 110],
+      [112, 116],
+      [118, 122],
+      [124, 128],
+      [130, 134],
+      [136, 140],
+      [142, 146],
+      [148, 152],
+    ],
+    { y: 28, height: 9, offsetY: 7, letterSpacing: 0 },
+  ),
+  ...glyphs(
+    ["▶", ":", ..."ÄÖÜäöü", "Lv", "[PP]", "[ID]", "[NO]"],
+    [
+      [2, 7],
+      [11, 13],
+      [17, 21],
+      [23, 27],
+      [29, 33],
+      [35, 39],
+      [41, 45],
+      [47, 51],
+      [53, 60],
+      [62, 69],
+      [72, 78],
+      [80, 87],
+    ],
+    { y: 39, height: 10, offsetY: 6, letterSpacing: 0 },
+  ),
+  ...glyphs(
+    ["↑", "↓", "←", "→", "+"],
+    [
+      [0, 6],
+      [8, 14],
+      [16, 22],
+      [24, 30],
+      [32, 37],
+    ],
+    { y: 51, height: 7, letterSpacing: 0 },
+  ),
+  ...glyphs(
+    [..."ÀÁÂÇÈÉÊËÌÍÎÏÒÓÔŒÙÚÛÑß"],
+    [
+      [0, 4],
+      [6, 10],
+      [12, 16],
+      [18, 22],
+      [24, 28],
+      [30, 34],
+      [36, 40],
+      [42, 46],
+      [48, 51],
+      [53, 56],
+      [58, 61],
+      [63, 66],
+      [68, 72],
+      [74, 78],
+      [80, 84],
+      [86, 90],
+      [92, 96],
+      [98, 102],
+      [104, 108],
+      [110, 114],
+      [116, 120],
+    ],
+    { y: 101, height: 12, offsetY: 5, letterSpacing: 0 },
+  ),
+  ...glyphs(
+    [..."àáâçèéêëìíîïòóôœùúûñ"],
+    [
+      [0, 4],
+      [6, 10],
+      [12, 16],
+      [18, 21],
+      [24, 28],
+      [30, 34],
+      [36, 40],
+      [42, 46],
+      [49, 50],
+      [54, 55],
+      [59, 60],
+      [64, 65],
+      [68, 72],
+      [74, 78],
+      [80, 84],
+      [86, 91],
+      [93, 97],
+      [99, 103],
+      [105, 109],
+      [111, 115],
+    ],
+    { y: 116, height: 10, offsetY: 5, letterSpacing: 0 },
+  ),
+  ...glyphs(
+    ["%", "(", ")", "<", ">"],
+    [
+      [88, 92],
+      [96, 98],
+      [102, 104],
+      [108, 112],
+      [116, 120],
+    ],
+    { y: 130, height: 8, letterSpacing: 0 },
+  ),
+  ...glyphs(
+    ["[PK]", "[MN]", "[POKEBLOCK]", "↑", "↓", "←", "→", "★"],
+    [
+      [0, 15],
+      [18, 33],
+      [35, 58],
+      [60, 66],
+      [68, 74],
+      [76, 82],
+      [84, 90],
+      [92, 97],
+    ],
+    { y: 142, height: 10, offsetY: 6, letterSpacing: 0 },
+  ),
+];
+
+const adjustedSmallGlyphs = adjustLowercaseAndDigitBaseline(smallGlyphs).map(
+  (glyph) =>
+    ['"', "“", "”", "‘", "’"].includes(glyph.token)
+      ? { ...glyph, offsetY: 8 }
+      : glyph,
+);
+
 export const SMALL_FONT: BitmapFontDefinition = {
   sheetUrl: smallFontUrl,
   glyphs: [
-    ...glyphs(
-      [
-        ...alphabet,
-        ..."0123456789",
-        "!",
-        "?",
-        ".",
-        "Lv",
-        "♂",
-        "♀",
-        "+",
-        "-",
-        "★",
-        "/",
-        "%",
-        "'",
-      ],
-      [
-        [0, 4],
-        [6, 10],
-        [12, 16],
-        [18, 22],
-        [24, 28],
-        [30, 34],
-        [36, 40],
-        [42, 46],
-        [48, 51],
-        [53, 57],
-        [59, 63],
-        [65, 69],
-        [71, 75],
-        [77, 81],
-        [83, 87],
-        [89, 93],
-        [95, 99],
-        [101, 105],
-        [107, 111],
-        [113, 116],
-        [118, 122],
-        [124, 128],
-        [130, 134],
-        [136, 140],
-        [142, 145],
-        [147, 151],
-        [153, 157],
-        [160, 163],
-        [165, 169],
-        [171, 175],
-        [177, 181],
-        [183, 187],
-        [189, 193],
-        [195, 199],
-        [201, 205],
-        [207, 211],
-        [213, 214],
-        [216, 220],
-        [222, 224],
-        [226, 233],
-        [235, 239],
-        [241, 245],
-        [247, 252],
-        [254, 258],
-        [260, 265],
-        [267, 270],
-        [272, 277],
-        [279, 281],
-      ],
-      0,
-    ),
+    ...adjustedSmallGlyphs,
+    ...aliases(["'"], "’", adjustedSmallGlyphs),
+    ...aliases(["$", "₽"], "¥", adjustedSmallGlyphs),
   ],
   lineHeight: 16,
   spaceWidth: 2,
@@ -318,6 +634,38 @@ export const POKEMON_NAME_TEMPLATE: TemplateDefinition = {
   capWidth: 3,
   paddingX: 2,
   textY: -3,
+  minWidth: 6,
+};
+
+export const TITLE_TEMPLATE: TemplateDefinition = {
+  id: "adv-title",
+  label: "Custom title",
+  kind: "title",
+  width: 80,
+  height: 18,
+  filenameSuffix: "title",
+  background: { url: pokemonNameBackgroundUrl },
+  capWidth: 3,
+  paddingX: 2,
+  textY: -3,
+  minWidth: 6,
+};
+
+export const GENERIC_TEXT_TEMPLATE: TemplateDefinition = {
+  id: "adv-generic-text",
+  label: "Generic text",
+  kind: "generic-text",
+  width: 94,
+  height: 14,
+  filenameSuffix: "generic-text",
+  background: { url: genericTextBackgroundUrl },
+  borderSize: 1,
+  padding: 2,
+  textOffsetY: -5,
+  glyphHeight: 8,
+  lineHeight: 10,
+  minWidth: 32,
+  maxWidth: 399,
 };
 
 export const POKEMON_SPOTLIGHT_TEMPLATE: TemplateDefinition = {
@@ -374,6 +722,8 @@ export const TEMPLATES = new Map<string, TemplateDefinition>([
   [STAT_PREVIEW_TEMPLATE.id, STAT_PREVIEW_TEMPLATE],
   [TEAM_PREVIEW_TEMPLATE.id, TEAM_PREVIEW_TEMPLATE],
   [POKEMON_NAME_TEMPLATE.id, POKEMON_NAME_TEMPLATE],
+  [TITLE_TEMPLATE.id, TITLE_TEMPLATE],
+  [GENERIC_TEXT_TEMPLATE.id, GENERIC_TEXT_TEMPLATE],
   [POKEMON_SPOTLIGHT_TEMPLATE.id, POKEMON_SPOTLIGHT_TEMPLATE],
   [POKEMON_SPOTLIGHT_SMALL_TEMPLATE.id, POKEMON_SPOTLIGHT_SMALL_TEMPLATE],
   [MOVE_OVERVIEW_TEMPLATE.id, MOVE_OVERVIEW_TEMPLATE],

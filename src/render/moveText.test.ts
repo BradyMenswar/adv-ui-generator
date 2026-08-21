@@ -29,6 +29,10 @@ describe("moveDescriptionText", () => {
     expect(smallFontText("User's move—it works")).toBe("User's moveit works");
   });
 
+  it("normalizes square brackets and preserves mapped punctuation", () => {
+    expect(smallFontText("Foe[s] <100%>")).toBe("Foe(s) <100%>");
+  });
+
   it("uses type-badge abbreviations for Hidden Power in Pokémon overviews", () => {
     expect(pokemonOverviewMoveText("Hidden Power Electric")).toBe(
       "Hidden Power Electr",

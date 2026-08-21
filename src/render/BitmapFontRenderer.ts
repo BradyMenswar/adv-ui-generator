@@ -8,7 +8,7 @@ export class BitmapFontRenderer {
   measure(text: string): number {
     if (!this.definition) return 0;
 
-    const normalizedText = text.toUpperCase();
+    const normalizedText = this.normalize(text);
     const glyphs = [...this.definition.glyphs].sort(
       (left, right) => right.token.length - left.token.length,
     );
@@ -26,7 +26,7 @@ export class BitmapFontRenderer {
       }
 
       const matched = glyphs.find((glyph) =>
-        remainder.startsWith(glyph.token.toUpperCase()),
+        remainder.startsWith(this.normalize(glyph.token)),
       );
       const glyph =
         matched ??
@@ -43,22 +43,53 @@ export class BitmapFontRenderer {
     return width;
   }
 
+  wrap(text: string, maxWidth: number): string[] {
+    const width = Math.max(1, maxWidth);
+    const lines: string[] = [];
+
+    for (const paragraph of text.replace(/\r\n?/g, "\n").split("\n")) {
+      if (!paragraph.trim()) {
+        lines.push("");
+        continue;
+      }
+
+      let currentLine = "";
+      for (const word of paragraph.trim().split(/\s+/)) {
+        const candidate = currentLine ? `${currentLine} ${word}` : word;
+        if (this.measure(candidate) <= width) {
+          currentLine = candidate;
+          continue;
+        }
+
+        if (currentLine) lines.push(currentLine);
+        const chunks = this.breakWord(word, width);
+        lines.push(...chunks.slice(0, -1));
+        currentLine = chunks[chunks.length - 1] ?? "";
+      }
+
+      lines.push(currentLine);
+    }
+
+    return lines.length ? lines : [""];
+  }
+
   async create(text: string, slot: TextSlot): Promise<Container> {
     if (!this.definition) return this.createFallback(text, slot);
 
     const container = new Container();
     const source = await Assets.load<Texture>(this.definition.sheetUrl);
-    const normalizedText = text.toUpperCase();
+    const normalizedText = this.normalize(text);
     const glyphs = [...this.definition.glyphs].sort(
       (left, right) => right.token.length - left.token.length,
     );
     let cursor = 0;
+    let contentWidth = 0;
     let characterIndex = 0;
 
     while (characterIndex < normalizedText.length) {
       const remainder = normalizedText.slice(characterIndex);
       const matched = glyphs.find((glyph) =>
-        remainder.startsWith(glyph.token.toUpperCase()),
+        remainder.startsWith(this.normalize(glyph.token)),
       );
       const glyph =
         matched ??
@@ -74,7 +105,7 @@ export class BitmapFontRenderer {
       }
       if (!glyph) continue;
       const advance = glyph.advance ?? glyph.width + 1;
-      if (cursor + advance > slot.maxWidth) break;
+      if (cursor + glyph.width > slot.maxWidth) break;
 
       const texture = new Texture({
         source: source.source,
@@ -87,11 +118,13 @@ export class BitmapFontRenderer {
       });
       const sprite = new Sprite(texture);
       sprite.x = cursor;
+      sprite.y = glyph.offsetY ?? 0;
       container.addChild(sprite);
+      contentWidth = cursor + glyph.width;
       cursor += advance;
     }
 
-    container.x = slot.x + this.alignmentOffset(slot, cursor);
+    container.x = slot.x + this.alignmentOffset(slot, contentWidth);
     container.y = slot.y;
     return container;
   }
@@ -126,5 +159,49 @@ export class BitmapFontRenderer {
       return Math.round((slot.maxWidth - contentWidth) / 2);
     }
     return 0;
+  }
+
+  private normalize(text: string): string {
+    return this.definition?.textTransform === "preserve"
+      ? text
+      : text.toUpperCase();
+  }
+
+  private breakWord(word: string, maxWidth: number): string[] {
+    const chunks: string[] = [];
+    let current = "";
+
+    for (const token of this.tokenize(word)) {
+      const candidate = current + token;
+      if (current && this.measure(candidate) > maxWidth) {
+        chunks.push(current);
+        current = token;
+      } else {
+        current = candidate;
+      }
+    }
+
+    if (current) chunks.push(current);
+    return chunks.length ? chunks : [word];
+  }
+
+  private tokenize(text: string): string[] {
+    if (!this.definition) return [...text];
+
+    const glyphs = [...this.definition.glyphs].sort(
+      (left, right) => right.token.length - left.token.length,
+    );
+    const tokens: string[] = [];
+    let index = 0;
+    while (index < text.length) {
+      const remainder = text.slice(index);
+      const matched = glyphs.find((glyph) =>
+        this.normalize(remainder).startsWith(this.normalize(glyph.token)),
+      );
+      const consumed = matched?.token.length ?? [...remainder][0].length;
+      tokens.push(remainder.slice(0, consumed));
+      index += consumed;
+    }
+    return tokens;
   }
 }

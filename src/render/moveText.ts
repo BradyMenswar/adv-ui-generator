@@ -7,7 +7,11 @@ export function moveDescriptionText(
 }
 
 export function smallFontText(value: string): string {
-  return value.replace(/’/g, "'").replace(/[^A-Za-z0-9.!?+/%'\- ]/g, "");
+  return value
+    .replace(/’/g, "'")
+    .replace(/\[/g, "(")
+    .replace(/\]/g, ")")
+    .replace(/[^A-Za-zÀ-ÖØ-öø-ÿŒœ0-9.!?+/%'"“”‘,:_\-×()<> ]/gu, "");
 }
 
 const TYPE_BADGE_NAMES: Record<string, string> = {

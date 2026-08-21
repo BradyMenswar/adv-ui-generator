@@ -30,7 +30,7 @@ interface RenderedEntry {
   panel: RenderedPanel;
   title: string;
   templateId: string;
-  scope: "pokemon" | "move" | "team";
+  scope: "pokemon" | "move" | "team" | "title" | "generic-text";
 }
 
 function escapeHtml(value: string): string {
@@ -89,6 +89,40 @@ export class App {
             </div>
             <button class="primary-button" id="generate-button" type="button">Load team &amp; generate</button>
           </div>
+          <section class="standalone-tool" aria-labelledby="custom-title-heading">
+            <div>
+              <h2 id="custom-title-heading">Custom title</h2>
+              <p>Generate a standalone title without loading a team.</p>
+            </div>
+            <label for="custom-title-input">Title text</label>
+            <div class="custom-title-row">
+              <input id="custom-title-input" type="text" maxlength="60" placeholder="Enter a title">
+              <button class="primary-button" id="generate-title-button" type="button" aria-label="Generate title">Generate</button>
+            </div>
+            <p class="title-message" id="title-message" aria-live="polite"></p>
+          </section>
+          <section class="standalone-tool" aria-labelledby="generic-text-heading">
+            <div>
+              <h2 id="generic-text-heading">Generic text</h2>
+              <p>Wrap to a fixed width or fit the panel to the longest line.</p>
+            </div>
+            <label for="generic-text-input">Text</label>
+            <textarea id="generic-text-input" class="generic-text-input" maxlength="1000" placeholder="Enter text; line breaks are preserved"></textarea>
+            <div class="generic-text-controls">
+              <div class="option-field">
+                <div class="generic-text-width-heading">
+                  <label for="generic-text-width">Native width</label>
+                  <label class="checkbox-control" for="generic-text-auto-width">
+                    <input id="generic-text-auto-width" type="checkbox">
+                    <span>Auto width</span>
+                  </label>
+                </div>
+                <input id="generic-text-width" type="number" min="32" max="399" step="1" value="94">
+              </div>
+              <button class="primary-button" id="generate-text-button" type="button">Generate</button>
+            </div>
+            <p class="title-message" id="generic-text-message" aria-live="polite"></p>
+          </section>
           <div id="messages" class="messages" aria-live="polite"></div>
           <p class="source-note">Parsing, names, stats, and image lookup follow the MIT-licensed Pokémon Showdown-compatible <code>@pkmn</code> packages.</p>
         </section>
@@ -117,9 +151,32 @@ export class App {
     this.root
       .querySelector("#generate-button")
       ?.addEventListener("click", () => void this.loadTeam());
-    this.scaleSelect.addEventListener("change", () => {
-      if (this.validSetIndexes.length) void this.renderAssets();
+    this.root
+      .querySelector("#generate-title-button")
+      ?.addEventListener("click", () => void this.renderTitle());
+    this.titleInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void this.renderTitle();
+      }
     });
+    this.root
+      .querySelector("#generate-text-button")
+      ?.addEventListener("click", () => void this.renderGenericText());
+    this.genericTextInput.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        void this.renderGenericText();
+      }
+    });
+    this.genericTextAutoWidthInput.addEventListener("change", () => {
+      this.genericTextWidthInput.disabled =
+        this.genericTextAutoWidthInput.checked;
+    });
+    this.scaleSelect.addEventListener(
+      "change",
+      () => void this.rerenderForScale(),
+    );
     this.root.querySelector("#sample-button")?.addEventListener("click", () => {
       this.input.value = SAMPLE_TEAM;
       this.teamNameInput.value = SAMPLE_TEAM_NAME;
@@ -145,6 +202,32 @@ export class App {
 
   private get results(): HTMLElement {
     return this.root.querySelector<HTMLElement>("#results")!;
+  }
+
+  private get titleInput(): HTMLInputElement {
+    return this.root.querySelector<HTMLInputElement>("#custom-title-input")!;
+  }
+
+  private get titleMessage(): HTMLElement {
+    return this.root.querySelector<HTMLElement>("#title-message")!;
+  }
+
+  private get genericTextInput(): HTMLTextAreaElement {
+    return this.root.querySelector<HTMLTextAreaElement>("#generic-text-input")!;
+  }
+
+  private get genericTextWidthInput(): HTMLInputElement {
+    return this.root.querySelector<HTMLInputElement>("#generic-text-width")!;
+  }
+
+  private get genericTextAutoWidthInput(): HTMLInputElement {
+    return this.root.querySelector<HTMLInputElement>(
+      "#generic-text-auto-width",
+    )!;
+  }
+
+  private get genericTextMessage(): HTMLElement {
+    return this.root.querySelector<HTMLElement>("#generic-text-message")!;
   }
 
   private get memberSelector(): HTMLElement {
@@ -189,7 +272,7 @@ export class App {
     this.showIssues(this.parseIssues);
     this.renderMemberSelector();
     if (!this.validSetIndexes.length) {
-      this.clearPanels();
+      this.clearTeamPanels();
       this.renderResults();
       return;
     }
@@ -246,7 +329,7 @@ export class App {
 
     this.generating = true;
     this.setBusy(true);
-    this.clearPanels();
+    this.clearTeamPanels();
     this.results.innerHTML = `<div class="rendering-state">Rendering ${escapeHtml(displayName(selectedSet))}…</div>`;
 
     const renderIssues: TeamIssue[] = [];
@@ -254,7 +337,9 @@ export class App {
       for (const template of TEMPLATES.values()) {
         if (
           template.kind === "team-preview" ||
-          template.kind === "move-overview"
+          template.kind === "move-overview" ||
+          template.kind === "title" ||
+          template.kind === "generic-text"
         )
           continue;
         try {
@@ -332,6 +417,93 @@ export class App {
     }
   }
 
+  private async renderTitle(): Promise<void> {
+    if (this.generating) return;
+    const title = this.titleInput.value.trim();
+    if (!title) {
+      this.titleMessage.textContent = "Enter title text to generate an asset.";
+      return;
+    }
+
+    this.generating = true;
+    this.setBusy(true);
+    this.titleMessage.textContent = "Rendering title…";
+    this.clearTitlePanels();
+    try {
+      const panel = await this.renderer.renderTitle(title, this.renderOptions);
+      this.renderedEntries.push({
+        panel,
+        title: "Custom title",
+        templateId: "adv-title",
+        scope: "title",
+      });
+      this.titleMessage.textContent = "Title ready.";
+      this.renderResults();
+    } catch (error) {
+      this.titleMessage.textContent =
+        error instanceof Error ? error.message : "Title rendering failed.";
+      this.renderResults();
+    } finally {
+      this.generating = false;
+      this.setBusy(false);
+    }
+  }
+
+  private async renderGenericText(): Promise<void> {
+    if (this.generating) return;
+    const text = this.genericTextInput.value.trim();
+    const width = this.genericTextWidthInput.valueAsNumber;
+    const autoWidth = this.genericTextAutoWidthInput.checked;
+    if (!text) {
+      this.genericTextMessage.textContent = "Enter text to generate an asset.";
+      return;
+    }
+    if (!autoWidth && !Number.isFinite(width)) {
+      this.genericTextMessage.textContent = "Enter a valid native width.";
+      return;
+    }
+
+    this.generating = true;
+    this.setBusy(true);
+    this.genericTextMessage.textContent = "Rendering text…";
+    this.clearGenericTextPanels();
+    try {
+      const panel = await this.renderer.renderGenericText(
+        text,
+        autoWidth ? "auto" : width,
+        this.renderOptions,
+      );
+      this.renderedEntries.push({
+        panel,
+        title: "Generic text",
+        templateId: "adv-generic-text",
+        scope: "generic-text",
+      });
+      this.genericTextMessage.textContent = "Text panel ready.";
+      this.renderResults();
+    } catch (error) {
+      this.genericTextMessage.textContent =
+        error instanceof Error ? error.message : "Text rendering failed.";
+      this.renderResults();
+    } finally {
+      this.generating = false;
+      this.setBusy(false);
+    }
+  }
+
+  private async rerenderForScale(): Promise<void> {
+    if (this.generating) return;
+    const hadTitle = this.renderedEntries.some(
+      (entry) => entry.scope === "title",
+    );
+    const hadGenericText = this.renderedEntries.some(
+      (entry) => entry.scope === "generic-text",
+    );
+    if (this.validSetIndexes.length) await this.renderAssets();
+    if (hadTitle) await this.renderTitle();
+    if (hadGenericText) await this.renderGenericText();
+  }
+
   private renderResults(): void {
     const count = this.root.querySelector<HTMLElement>("#result-count")!;
     const pokemonEntries = this.renderedEntries.filter(
@@ -343,6 +515,9 @@ export class App {
     const moveEntries = this.renderedEntries.filter(
       (entry) => entry.scope === "move",
     );
+    const standaloneEntries = this.renderedEntries.filter(
+      (entry) => entry.scope === "title" || entry.scope === "generic-text",
+    );
 
     if (!this.renderedEntries.length) {
       count.textContent = "No assets generated";
@@ -350,18 +525,43 @@ export class App {
       return;
     }
 
-    count.textContent = `${pokemonEntries.length} Pokémon assets · ${moveEntries.length} move assets${teamEntries.length ? ` · ${teamEntries.length} team asset` : ""}`;
-    const selectedName = displayName(this.parsedSets[this.selectedSetIndex]);
+    const countParts = [
+      pokemonEntries.length ? `${pokemonEntries.length} Pokémon assets` : "",
+      moveEntries.length ? `${moveEntries.length} move assets` : "",
+      teamEntries.length ? `${teamEntries.length} team asset` : "",
+      standaloneEntries.length
+        ? `${standaloneEntries.length} standalone ${standaloneEntries.length === 1 ? "asset" : "assets"}`
+        : "",
+    ].filter(Boolean);
+    count.textContent = countParts.join(" · ");
+    const selectedSet = this.parsedSets[this.selectedSetIndex];
     this.results.innerHTML = `
-      <section class="asset-group" aria-labelledby="pokemon-assets-heading">
-        <div class="asset-group-heading">
-          <h3 id="pokemon-assets-heading">${escapeHtml(selectedName)}</h3>
-          <span>All Pokémon assets</span>
-        </div>
-        <div class="asset-grid">
-          ${pokemonEntries.map((entry) => this.renderEntry(entry)).join("")}
-        </div>
-      </section>
+      ${
+        standaloneEntries.length
+          ? `<section class="asset-group" aria-labelledby="standalone-assets-heading">
+              <div class="asset-group-heading">
+                <h3 id="standalone-assets-heading">Standalone assets</h3>
+                <span>Independent of team data</span>
+              </div>
+              <div class="asset-grid asset-grid--standalone">
+                ${standaloneEntries.map((entry) => this.renderEntry(entry)).join("")}
+              </div>
+            </section>`
+          : ""
+      }
+      ${
+        pokemonEntries.length && selectedSet
+          ? `<section class="asset-group" aria-labelledby="pokemon-assets-heading">
+              <div class="asset-group-heading">
+                <h3 id="pokemon-assets-heading">${escapeHtml(displayName(selectedSet))}</h3>
+                <span>All Pokémon assets</span>
+              </div>
+              <div class="asset-grid">
+                ${pokemonEntries.map((entry) => this.renderEntry(entry)).join("")}
+              </div>
+            </section>`
+          : ""
+      }
       ${
         moveEntries.length
           ? `<section class="asset-group" aria-labelledby="move-assets-heading">
@@ -474,6 +674,21 @@ export class App {
       this.root.querySelector<HTMLButtonElement>("#generate-button")!;
     button.disabled = busy;
     button.textContent = busy ? "Rendering…" : "Load team & generate";
+    const titleButton = this.root.querySelector<HTMLButtonElement>(
+      "#generate-title-button",
+    )!;
+    titleButton.disabled = busy;
+    titleButton.textContent = busy ? "Rendering…" : "Generate";
+    this.titleInput.disabled = busy;
+    const textButton = this.root.querySelector<HTMLButtonElement>(
+      "#generate-text-button",
+    )!;
+    textButton.disabled = busy;
+    textButton.textContent = busy ? "Rendering…" : "Generate";
+    this.genericTextInput.disabled = busy;
+    this.genericTextAutoWidthInput.disabled = busy;
+    this.genericTextWidthInput.disabled =
+      busy || this.genericTextAutoWidthInput.checked;
     this.scaleSelect.disabled = busy;
     this.memberSelector
       .querySelectorAll<HTMLButtonElement>("button")
@@ -484,6 +699,31 @@ export class App {
     for (const entry of this.renderedEntries)
       URL.revokeObjectURL(entry.panel.previewUrl);
     this.renderedEntries = [];
+  }
+
+  private clearTeamPanels(): void {
+    this.clearPanelsByScope(
+      (scope) => scope === "pokemon" || scope === "move" || scope === "team",
+    );
+  }
+
+  private clearTitlePanels(): void {
+    this.clearPanelsByScope((scope) => scope === "title");
+  }
+
+  private clearGenericTextPanels(): void {
+    this.clearPanelsByScope((scope) => scope === "generic-text");
+  }
+
+  private clearPanelsByScope(
+    shouldClear: (scope: RenderedEntry["scope"]) => boolean,
+  ): void {
+    for (const entry of this.renderedEntries) {
+      if (shouldClear(entry.scope)) URL.revokeObjectURL(entry.panel.previewUrl);
+    }
+    this.renderedEntries = this.renderedEntries.filter(
+      (entry) => !shouldClear(entry.scope),
+    );
   }
 
   private destroy(): void {

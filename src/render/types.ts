@@ -86,13 +86,39 @@ export interface TeamPreviewTemplateDefinition extends BaseTemplateDefinition {
   };
 }
 
-export interface PokemonNameTemplateDefinition extends BaseTemplateDefinition {
-  kind: "pokemon-name";
-  background: AssetSource;
+interface DynamicLabelTemplateProperties {
   capWidth: number;
   paddingX: number;
   textY: number;
+  minWidth: number;
 }
+
+export interface PokemonNameTemplateDefinition
+  extends BaseTemplateDefinition, DynamicLabelTemplateProperties {
+  kind: "pokemon-name";
+  background: AssetSource;
+}
+
+export interface TitleTemplateDefinition
+  extends BaseTemplateDefinition, DynamicLabelTemplateProperties {
+  kind: "title";
+  background: AssetSource;
+}
+
+export interface GenericTextTemplateDefinition extends BaseTemplateDefinition {
+  kind: "generic-text";
+  background: AssetSource;
+  borderSize: number;
+  padding: number;
+  textOffsetY: number;
+  glyphHeight: number;
+  lineHeight: number;
+  minWidth: number;
+  maxWidth: number;
+}
+
+export type DynamicLabelTemplateDefinition =
+  PokemonNameTemplateDefinition | TitleTemplateDefinition;
 
 export interface PokemonSpotlightTemplateDefinition extends BaseTemplateDefinition {
   kind: "pokemon-spotlight";
@@ -123,6 +149,8 @@ export type TemplateDefinition =
   | StatPreviewTemplateDefinition
   | TeamPreviewTemplateDefinition
   | PokemonNameTemplateDefinition
+  | TitleTemplateDefinition
+  | GenericTextTemplateDefinition
   | PokemonSpotlightTemplateDefinition
   | PokemonSpotlightSmallTemplateDefinition
   | MoveOverviewTemplateDefinition;
@@ -131,6 +159,7 @@ export interface BitmapGlyph {
   token: string;
   x: number;
   y?: number;
+  offsetY?: number;
   width: number;
   height?: number;
   advance?: number;
@@ -142,6 +171,7 @@ export interface BitmapFontDefinition {
   lineHeight: number;
   spaceWidth?: number;
   fallbackGlyph: string;
+  textTransform?: "uppercase" | "preserve";
 }
 
 export type RenderScale = 1 | 2 | 3 | 4 | 6 | 8 | 10;

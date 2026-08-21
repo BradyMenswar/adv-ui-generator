@@ -39,6 +39,7 @@ The current templates use the PNGs under `public/assets/ui`, including:
 - `public/assets/ui/stat-preview.png`
 - `public/assets/ui/team-preview.png`
 - `public/assets/ui/pokemon-name.png`
+- `public/assets/ui/generic-text.png`
 - `public/assets/ui/pokemon-spotlight.png`
 - `public/assets/ui/pokemon-spotlight-small.png`
 - `public/assets/ui/font-small.png`

@@ -144,7 +144,7 @@ export interface BitmapFontDefinition {
   fallbackGlyph: string;
 }
 
-export type RenderScale = 1 | 2 | 3 | 4 | 6 | 8;
+export type RenderScale = 1 | 2 | 3 | 4 | 6 | 8 | 10;
 
 export interface RenderOptions {
   templateId: string;

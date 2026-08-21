@@ -71,7 +71,7 @@ export class App {
             <button class="text-button" id="sample-button" type="button">Load example</button>
           </div>
           <label for="team-name">Team name</label>
-          <input id="team-name" class="team-name-input" type="text" value="${SAMPLE_TEAM_NAME}" maxlength="40">
+          <input id="team-name" class="team-name-input" type="text" value="" maxlength="40">
           <label for="team-input">Showdown export or packed team</label>
           <textarea id="team-input" spellcheck="false" placeholder="Paste a Pokémon Showdown team here…"></textarea>
           <div class="form-row">
@@ -80,10 +80,11 @@ export class App {
               <select id="scale-select">
                 <option value="1">Native</option>
                 <option value="2">2×</option>
-                <option value="3" selected>3×</option>
+                <option value="3">3×</option>
                 <option value="4">4×</option>
                 <option value="6">6×</option>
                 <option value="8">8×</option>
+                <option value="10" selected>10×</option>
               </select>
             </div>
             <button class="primary-button" id="generate-button" type="button">Load team &amp; generate</button>
@@ -162,6 +163,7 @@ export class App {
       case 4:
       case 6:
       case 8:
+      case 10:
         return { scale: scaleValue };
       default:
         return { scale: 1 };

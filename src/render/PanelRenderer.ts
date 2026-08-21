@@ -38,6 +38,7 @@ import {
   POKEMON_NAME_FONT,
   POKEMON_PANEL_TEMPLATE,
   SMALL_FONT,
+  TEAM_PREVIEW_FONT,
   TITLE_FONT,
   TITLE_TEMPLATE,
   TEMPLATES,
@@ -104,6 +105,7 @@ export class PanelRenderer {
   private readonly app = new Application();
   private readonly font = new BitmapFontRenderer(SMALL_FONT);
   private readonly compactLargeFont = new BitmapFontRenderer(POKEMON_NAME_FONT);
+  private readonly teamPreviewFont = new BitmapFontRenderer(TEAM_PREVIEW_FONT);
   private readonly titleFont = new BitmapFontRenderer(TITLE_FONT);
   private initialized = false;
 
@@ -594,7 +596,7 @@ export class PanelRenderer {
     }
 
     stage.addChild(
-      await this.compactLargeFont.create(
+      await this.teamPreviewFont.create(
         normalizedLargeText(teamName),
         template.text.name,
       ),

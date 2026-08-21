@@ -12,6 +12,7 @@ import {
   POKEMON_PANEL_TEMPLATE,
   SMALL_FONT,
   STAT_PREVIEW_TEMPLATE,
+  TEAM_PREVIEW_FONT,
   TEAM_PREVIEW_TEMPLATE,
   TITLE_FONT,
   TITLE_TEMPLATE,
@@ -271,12 +272,15 @@ describe("render templates", () => {
     ).toBe(6);
   });
 
-  it("aligns title digits with capital letters", () => {
+  it("aligns title and team-preview digits with capital letters", () => {
     expect(
       TITLE_FONT.glyphs.find((glyph) => glyph.token === "A")?.offsetY,
     ).toBe(8);
     expect(
       TITLE_FONT.glyphs.find((glyph) => glyph.token === "1")?.offsetY,
+    ).toBe(8);
+    expect(
+      TEAM_PREVIEW_FONT.glyphs.find((glyph) => glyph.token === "1")?.offsetY,
     ).toBe(8);
     expect(
       POKEMON_NAME_FONT.glyphs.find((glyph) => glyph.token === "1")?.offsetY,

@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { Dex } from "@pkmn/dex";
-import { Icons, Sprites } from "@pkmn/img";
+import { Icons } from "@pkmn/img";
 
 const outputRoot = join(process.cwd(), "public", "assets", "showdown");
 const menuOutputRoot = join(
@@ -33,11 +33,6 @@ const menuSpriteForms = {
   deoxysdefense: "386D",
   deoxysspeed: "386S",
 };
-
-for (const pokemon of species) {
-  urls.add(Sprites.getPokemon(pokemon.name, { gen: 3 }).url);
-  urls.add(Sprites.getPokemon(pokemon.name, { gen: 3, shiny: true }).url);
-}
 
 const menuSpriteFilenames = new Set(
   species.map((pokemon) => {

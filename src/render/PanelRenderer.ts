@@ -25,7 +25,13 @@ import {
 } from "./moveText";
 import { showdownStatBarScale } from "./statBarScale";
 import { encodeAnimatedGif } from "./gifEncoder";
-import { loadMenuSpriteFrames } from "./menuSpriteFrames";
+import {
+  bottomCenterBounds,
+  loadMenuSpriteFrames,
+  loadSpriteAnimation,
+  resolveAnimationFrameIndex,
+  type AnimationFrameSelection,
+} from "./menuSpriteFrames";
 import {
   GENERIC_TEXT_TEMPLATE,
   MOVE_OVERVIEW_TEMPLATE,
@@ -160,15 +166,25 @@ export class PanelRenderer {
     }
 
     if (template.kind === "pokemon-spotlight") {
-      const stage = await this.createPokemonSpotlight(set, template);
       const species = ADV_DEX.species.get(set.species ?? "");
-      return this.exportPanel(stage, template, options.scale, {
+      const metadata = {
         sourceSetIndex,
         set,
         speciesId: species.id,
         label: set.name || species.name || set.species || "Unknown Pokémon",
         filenameStem: `${String(sourceSetIndex + 1).padStart(2, "0")}-${species.id}-spotlight`,
-      });
+      };
+      if (options.battleSpriteOutput !== "static") {
+        return this.renderAnimatedBattlePanel(
+          set,
+          template,
+          options,
+          metadata,
+          (frame) => this.createPokemonSpotlight(set, template, frame),
+        );
+      }
+      const stage = await this.createPokemonSpotlight(set, template, "last");
+      return this.exportPanel(stage, template, options.scale, metadata);
     }
 
     if (template.kind === "pokemon-spotlight-small") {
@@ -194,7 +210,7 @@ export class PanelRenderer {
           template,
           options.scale,
           metadata,
-          animation.delay,
+          animation.delays,
         );
       }
       const stage = await this.createPokemonSpotlightSmall(set, template, 0);
@@ -203,18 +219,35 @@ export class PanelRenderer {
       });
     }
 
-    const stage = await this.createPanel(set, template);
     const species = ADV_DEX.species.get(set.species ?? "");
     const templateSuffix = template.filenameSuffix
       ? `-${template.filenameSuffix}`
       : "";
-    return this.exportPanel(stage, template, options.scale, {
+    const metadata = {
       sourceSetIndex,
       set,
       speciesId: species.id,
       label: set.name || species.name || set.species || "Unknown Pokémon",
       filenameStem: `${String(sourceSetIndex + 1).padStart(2, "0")}-${species.id}${templateSuffix}`,
-    });
+    };
+    if (
+      template.kind === "pokemon-overview" &&
+      options.battleSpriteOutput !== "static"
+    ) {
+      return this.renderAnimatedBattlePanel(
+        set,
+        template,
+        options,
+        metadata,
+        (frame) => this.createPokemonOverview(set, template, frame),
+      );
+    }
+    const stage = await this.createPanel(
+      set,
+      template,
+      template.kind === "pokemon-overview" ? "last" : undefined,
+    );
+    return this.exportPanel(stage, template, options.scale, metadata);
   }
 
   async renderTeam(
@@ -251,7 +284,7 @@ export class PanelRenderer {
         ),
       );
       const delay = animations.length
-        ? Math.max(...animations.map((animation) => animation.delay))
+        ? Math.max(...animations.map((animation) => animation.delays[0] ?? 170))
         : 170;
       const stages = await Promise.all(
         [0, 1].map((frame) =>
@@ -263,7 +296,7 @@ export class PanelRenderer {
         template,
         options.scale,
         metadata,
-        delay,
+        [delay, delay],
       );
     }
     const stage = await this.createTeamPreview(sets, displayName, template, 0);
@@ -430,12 +463,19 @@ export class PanelRenderer {
       RenderedPanel,
       "sourceSetIndex" | "set" | "speciesId" | "label"
     > & { filenameStem: string },
-    delay: number,
+    delays: number[],
+    animationOptions: {
+      repeat: "once" | "forever";
+      loopPauseMs?: number;
+    } = { repeat: "forever" },
   ): RenderedPanel {
     const canvases = stages.map((stage) =>
-      this.renderStageToCanvas(stage, dimensions, scale),
+      this.renderStageToCanvas(stage, dimensions, 1),
     );
-    const blob = encodeAnimatedGif(canvases, delay);
+    const blob = encodeAnimatedGif(canvases, delays, {
+      ...animationOptions,
+      scale,
+    });
     const scaleSuffix = scale === 1 ? "" : `-${scale}x`;
 
     for (const stage of stages) stage.destroy({ children: true });
@@ -445,13 +485,54 @@ export class PanelRenderer {
       set: metadata.set,
       speciesId: metadata.speciesId,
       label: metadata.label,
-      width: canvases[0].width,
-      height: canvases[0].height,
+      width: canvases[0].width * scale,
+      height: canvases[0].height * scale,
       blob,
       previewUrl: URL.createObjectURL(blob),
       filename: `${metadata.filenameStem}${scaleSuffix}.gif`,
       format: "GIF",
     };
+  }
+
+  private async renderAnimatedBattlePanel(
+    set: Partial<PokemonSet>,
+    dimensions: { width: number; height: number },
+    options: RenderOptions,
+    metadata: Pick<
+      RenderedPanel,
+      "sourceSetIndex" | "set" | "speciesId" | "label"
+    > & { filenameStem: string },
+    createStage: (frame: number) => Promise<Container>,
+  ): Promise<RenderedPanel> {
+    const asset = showdownAssets.pokemonEmeraldSprite(set.species ?? "", {
+      shiny: set.shiny,
+    });
+    if (!asset) {
+      throw new Error("This form does not have an enabled Emerald animation.");
+    }
+    const animation = await loadSpriteAnimation(asset.url);
+    const stages = await Promise.all(
+      animation.frames.map((_, frame) => createStage(frame)),
+    );
+    const animatedScale = options.scale;
+    const looping = options.battleSpriteOutput === "loop";
+    const pauseSuffix = `${(options.battleAnimationLoopPauseMs / 1000)
+      .toFixed(1)
+      .replace(".", "_")}s`;
+    return this.exportAnimatedPanel(
+      stages,
+      dimensions,
+      animatedScale,
+      {
+        ...metadata,
+        filenameStem: `${metadata.filenameStem}-${looping ? `loop-${pauseSuffix}` : "once"}`,
+      },
+      animation.delays,
+      {
+        repeat: looping ? "forever" : "once",
+        loopPauseMs: looping ? options.battleAnimationLoopPauseMs : 0,
+      },
+    );
   }
 
   private renderStageToCanvas(
@@ -493,11 +574,12 @@ export class PanelRenderer {
   private async createPanel(
     set: Partial<PokemonSet>,
     template: PokemonOverviewTemplateDefinition | StatPreviewTemplateDefinition,
+    battleFrame?: AnimationFrameSelection,
   ): Promise<Container> {
     if (template.kind === "stat-preview") {
       return this.createStatPreview(set, template);
     }
-    return this.createPokemonOverview(set, template);
+    return this.createPokemonOverview(set, template, battleFrame);
   }
 
   private async createTeamPreview(
@@ -632,27 +714,38 @@ export class PanelRenderer {
   private async createPokemonSpotlight(
     set: Partial<PokemonSet>,
     template: PokemonSpotlightTemplateDefinition,
+    battleFrame?: AnimationFrameSelection,
   ): Promise<Container> {
     const stage = new Container();
     if (template.background) {
       stage.addChild(await this.createAssetSprite(template.background));
     }
 
-    const sprite = await this.createAssetSprite(
-      showdownAssets.pokemonSprite(set.species ?? "", { shiny: set.shiny }),
+    const sprite = await this.createBattleSprite(
+      set,
+      battleFrame,
+      template.spriteMask,
+      template.animatedSpriteOffset,
     );
-    sprite.x = template.sprite.x;
-    sprite.y = template.sprite.y;
+    const staticAnimationTopPadding =
+      battleFrame === "last"
+        ? Math.max(0, -template.animatedSpriteOffset.y)
+        : 0;
     const mask = new Graphics()
       .rect(
         template.spriteMask.x,
-        template.spriteMask.y,
+        template.spriteMask.y - staticAnimationTopPadding,
         template.spriteMask.width,
-        template.spriteMask.height,
+        template.spriteMask.height + staticAnimationTopPadding,
       )
       .fill(0xffffff);
-    sprite.mask = mask;
-    stage.addChild(mask, sprite);
+    if (battleFrame === undefined || battleFrame === "last") {
+      sprite.mask = mask;
+      stage.addChild(mask, sprite);
+    } else {
+      mask.destroy();
+      stage.addChild(sprite);
+    }
 
     return stage;
   }
@@ -680,6 +773,7 @@ export class PanelRenderer {
   private async createPokemonOverview(
     set: Partial<PokemonSet>,
     template: PokemonOverviewTemplateDefinition,
+    battleFrame?: AnimationFrameSelection,
   ): Promise<Container> {
     const stage = new Container();
 
@@ -688,21 +782,31 @@ export class PanelRenderer {
       stage.addChild(background);
     }
 
-    const sprite = await this.createAssetSprite(
-      showdownAssets.pokemonSprite(set.species ?? "", { shiny: set.shiny }),
+    const sprite = await this.createBattleSprite(
+      set,
+      battleFrame,
+      template.spriteMask,
+      template.animatedSpriteOffset,
     );
-    sprite.x = template.sprite.x;
-    sprite.y = template.sprite.y;
+    const staticAnimationTopPadding =
+      battleFrame === "last"
+        ? Math.max(0, -template.animatedSpriteOffset.y)
+        : 0;
     const mask = new Graphics()
       .rect(
         template.spriteMask.x,
-        template.spriteMask.y,
+        template.spriteMask.y - staticAnimationTopPadding,
         template.spriteMask.width,
-        template.spriteMask.height,
+        template.spriteMask.height + staticAnimationTopPadding,
       )
       .fill(0xffffff);
-    sprite.mask = mask;
-    stage.addChild(mask, sprite);
+    if (battleFrame === undefined || battleFrame === "last") {
+      sprite.mask = mask;
+      stage.addChild(mask, sprite);
+    } else {
+      mask.destroy();
+      stage.addChild(sprite);
+    }
 
     if (set.item) {
       const item = await this.createAssetSprite(
@@ -993,5 +1097,40 @@ export class PanelRenderer {
     sprite.y =
       slot.y + frame.height - (animation.bounds.y + animation.bounds.height);
     return sprite;
+  }
+
+  private async createBattleSprite(
+    set: Partial<PokemonSet>,
+    frameIndex: AnimationFrameSelection | undefined,
+    mask: { x: number; y: number; width: number; height: number },
+    animatedOffset: Point,
+  ): Promise<Sprite> {
+    const emeraldAsset = showdownAssets.pokemonEmeraldSprite(
+      set.species ?? "",
+      { shiny: set.shiny },
+    );
+    if (frameIndex !== undefined && emeraldAsset) {
+      const animation = await loadSpriteAnimation(emeraldAsset.url);
+      const resolvedFrameIndex = resolveAnimationFrameIndex(
+        frameIndex,
+        animation.frames.length,
+      );
+      const frame = animation.frames[resolvedFrameIndex];
+      const texture = Texture.from(frame);
+      texture.source.scaleMode = "nearest";
+      const sprite = new Sprite(texture);
+      const position = bottomCenterBounds(
+        animation.restingBounds,
+        mask,
+        animatedOffset,
+      );
+      sprite.x = position.x;
+      sprite.y = position.y;
+      return sprite;
+    }
+
+    throw new Error(
+      `No Emerald battle sprite is available for ${set.species ?? "this Pokémon"}.`,
+    );
   }
 }

@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "dev": "vite",
     "test": "vitest run",
-    "assets:mirror": "node scripts/mirror-showdown-assets.mjs"
+    "assets:mirror": "node scripts/mirror-showdown-assets.mjs && npm run assets:mirror:emerald",
+    "assets:mirror:emerald": "node scripts/mirror-emerald-sprites.mjs"
   },
   "dependencies": {
     "@pkmn/data": "0.10.11",

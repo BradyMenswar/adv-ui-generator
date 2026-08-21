@@ -77,17 +77,26 @@ Ability: Rough Skin
 
 describe("Showdown asset adapter", () => {
   it("uses pinned local sprite paths", () => {
-    expect(showdownAssets.pokemonSprite("Tyranitar").url).toBe(
-      "/assets/showdown/sprites/gen3/tyranitar.png",
-    );
-    expect(showdownAssets.pokemonSprite("Tyranitar", { shiny: true }).url).toBe(
-      "/assets/showdown/sprites/gen3-shiny/tyranitar.png",
-    );
     expect(showdownAssets.pokemonMenuSprite("Tyranitar").url).toBe(
       "/assets/bulbagarden/menu/Ani248MS.png",
     );
     expect(showdownAssets.pokemonMenuSprite("Deoxys-Attack").url).toBe(
       "/assets/bulbagarden/menu/Ani386AMS.png",
+    );
+    expect(showdownAssets.pokemonEmeraldSprite("Tyranitar")?.url).toBe(
+      "/assets/bulbagarden/emerald/Spr_3e_248.png",
+    );
+    expect(
+      showdownAssets.pokemonEmeraldSprite("Tyranitar", { shiny: true })?.url,
+    ).toBe("/assets/bulbagarden/emerald/Spr_3e_248_s.png");
+    expect(showdownAssets.pokemonEmeraldSprite("Castform-Sunny")?.url).toBe(
+      "/assets/bulbagarden/emerald/Spr_3e_351S.png",
+    );
+    expect(showdownAssets.pokemonEmeraldSprite("Deoxys-Speed")?.url).toBe(
+      "/assets/bulbagarden/emerald/Spr_3e_386S.png",
+    );
+    expect(showdownAssets.pokemonEmeraldSprite("Deoxys-Attack")).toBe(
+      undefined,
     );
   });
 

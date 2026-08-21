@@ -68,6 +68,16 @@ describe("render templates", () => {
       width: 80,
       height: 84,
       filenameSuffix: "spotlight",
+      animatedSpriteOffset: { x: 0, y: -2 },
+    });
+  });
+
+  it("moves Emerald battle sprites up two pixels in both full-size layouts", () => {
+    expect(POKEMON_PANEL_TEMPLATE).toMatchObject({
+      animatedSpriteOffset: { x: 0, y: -2 },
+    });
+    expect(POKEMON_SPOTLIGHT_TEMPLATE).toMatchObject({
+      animatedSpriteOffset: { x: 0, y: -2 },
     });
   });
 

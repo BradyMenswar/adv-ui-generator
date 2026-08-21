@@ -1,4 +1,4 @@
-import { Icons, Sprites } from "@pkmn/img";
+import { Icons } from "@pkmn/img";
 
 import { publicAssetUrl } from "../render/publicAssetUrl";
 import type { AssetSource } from "../render/types";
@@ -38,6 +38,12 @@ const MENU_SPRITE_FORMS: Record<string, string> = {
   deoxysdefense: "386D",
   deoxysspeed: "386S",
 };
+const EMERALD_SPRITE_FORMS: Record<string, string> = {
+  castformsunny: "351S",
+  castformrainy: "351R",
+  castformsnowy: "351H",
+  deoxysspeed: "386S",
+};
 
 function localizeShowdownUrl(url: string): string {
   const parsed = new URL(url);
@@ -45,17 +51,6 @@ function localizeShowdownUrl(url: string): string {
 }
 
 export const showdownAssets = {
-  pokemonSprite(
-    species: string,
-    options: { shiny?: boolean } = {},
-  ): AssetSource {
-    const sprite = Sprites.getPokemon(species, {
-      gen: 3,
-      shiny: options.shiny,
-    });
-    return { url: localizeShowdownUrl(sprite.url) };
-  },
-
   pokemonIcon(species: string, gender?: string): AssetSource {
     const icon = Icons.getPokemon(species, {
       gender: gender === "F" ? "F" : gender === "M" ? "M" : undefined,
@@ -72,6 +67,24 @@ export const showdownAssets = {
       MENU_SPRITE_FORMS[pokemon.id] ?? String(pokemon.num).padStart(3, "0");
     return {
       url: publicAssetUrl(`/assets/bulbagarden/menu/Ani${number}MS.png`),
+    };
+  },
+
+  pokemonEmeraldSprite(
+    species: string,
+    options: { shiny?: boolean } = {},
+  ): AssetSource | undefined {
+    const pokemon = ADV_DEX.species.get(species);
+    if (!pokemon.exists) return undefined;
+    const number = pokemon.forme
+      ? EMERALD_SPRITE_FORMS[pokemon.id]
+      : String(pokemon.num).padStart(3, "0");
+    if (!number) return undefined;
+    const shinySuffix = options.shiny ? "_s" : "";
+    return {
+      url: publicAssetUrl(
+        `/assets/bulbagarden/emerald/Spr_3e_${number}${shinySuffix}.png`,
+      ),
     };
   },
 

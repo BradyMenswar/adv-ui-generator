@@ -1,9 +1,10 @@
 import * as UPNG from "upng-js";
 
-interface MenuSpriteAnimation {
+export interface SpriteAnimation {
   frames: HTMLCanvasElement[];
-  delay: number;
+  delays: number[];
   bounds: MenuSpriteBounds;
+  restingBounds: MenuSpriteBounds;
 }
 
 export interface MenuSpriteBounds {
@@ -13,7 +14,34 @@ export interface MenuSpriteBounds {
   height: number;
 }
 
-const animationCache = new Map<string, Promise<MenuSpriteAnimation>>();
+export type AnimationFrameSelection = number | "last";
+
+export function resolveAnimationFrameIndex(
+  selection: AnimationFrameSelection,
+  frameCount: number,
+): number {
+  if (frameCount < 1) throw new Error("The animation has no frames.");
+  if (selection === "last") return frameCount - 1;
+  return ((selection % frameCount) + frameCount) % frameCount;
+}
+
+export function bottomCenterBounds(
+  bounds: MenuSpriteBounds,
+  container: MenuSpriteBounds,
+  offset: { x: number; y: number },
+): { x: number; y: number } {
+  return {
+    x: Math.round(
+      container.x +
+        container.width / 2 -
+        (bounds.x + bounds.width / 2) +
+        offset.x,
+    ),
+    y: container.y + container.height - (bounds.y + bounds.height) + offset.y,
+  };
+}
+
+const animationCache = new Map<string, Promise<SpriteAnimation>>();
 
 export function opaqueUnionBounds(
   frames: ArrayBuffer[],
@@ -47,7 +75,7 @@ export function opaqueUnionBounds(
   };
 }
 
-async function decodeMenuSprite(url: string): Promise<MenuSpriteAnimation> {
+async function decodeSpriteAnimation(url: string): Promise<SpriteAnimation> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Could not load menu sprite (${response.status}).`);
@@ -72,17 +100,22 @@ async function decodeMenuSprite(url: string): Promise<MenuSpriteAnimation> {
   if (!frames.length) throw new Error("The menu sprite has no frames.");
   return {
     frames,
-    delay: decoded.frames[0]?.delay || 170,
+    delays: frames.map((_, index) => decoded.frames[index]?.delay || 100),
     bounds: opaqueUnionBounds(rgbaFrames, decoded.width, decoded.height),
+    restingBounds: opaqueUnionBounds(
+      [rgbaFrames[rgbaFrames.length - 1]],
+      decoded.width,
+      decoded.height,
+    ),
   };
 }
 
-export function loadMenuSpriteFrames(
-  url: string,
-): Promise<MenuSpriteAnimation> {
+export function loadSpriteAnimation(url: string): Promise<SpriteAnimation> {
   const cached = animationCache.get(url);
   if (cached) return cached;
-  const animation = decodeMenuSprite(url);
+  const animation = decodeSpriteAnimation(url);
   animationCache.set(url, animation);
   return animation;
 }
+
+export const loadMenuSpriteFrames = loadSpriteAnimation;

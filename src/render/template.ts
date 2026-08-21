@@ -483,7 +483,7 @@ export const POKEMON_PANEL_TEMPLATE: TemplateDefinition = {
   width: 399,
   height: 94,
   background: { url: panelBackgroundUrl },
-  sprite: { x: -8, y: -2 },
+  animatedSpriteOffset: { x: 0, y: -2 },
   spriteMask: { x: 8, y: 16, width: 65, height: 64 },
   itemIcon: { x: 86, y: 60 },
   typeIcons: [
@@ -684,7 +684,7 @@ export const POKEMON_SPOTLIGHT_TEMPLATE: TemplateDefinition = {
   height: 84,
   filenameSuffix: "spotlight",
   background: { url: pokemonSpotlightBackgroundUrl },
-  sprite: { x: -8, y: -6 },
+  animatedSpriteOffset: { x: 0, y: -2 },
   spriteMask: { x: 8, y: 12, width: 65, height: 64 },
 };
 

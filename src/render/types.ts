@@ -39,7 +39,7 @@ interface BaseTemplateDefinition {
 
 export interface PokemonOverviewTemplateDefinition extends BaseTemplateDefinition {
   kind: "pokemon-overview";
-  sprite: Point;
+  animatedSpriteOffset: Point;
   spriteMask: AtlasFrame;
   itemIcon: Point;
   typeIcons: Point[];
@@ -122,7 +122,7 @@ export type DynamicLabelTemplateDefinition =
 
 export interface PokemonSpotlightTemplateDefinition extends BaseTemplateDefinition {
   kind: "pokemon-spotlight";
-  sprite: Point;
+  animatedSpriteOffset: Point;
   spriteMask: AtlasFrame;
 }
 
@@ -176,11 +176,14 @@ export interface BitmapFontDefinition {
 
 export type RenderScale = 1 | 2 | 3 | 4 | 6 | 8 | 10;
 export type MenuSpriteOutput = "png" | "gif";
+export type BattleSpriteOutput = "static" | "once" | "loop";
 
 export interface RenderOptions {
   templateId: string;
   scale: RenderScale;
   menuSpriteOutput: MenuSpriteOutput;
+  battleSpriteOutput: BattleSpriteOutput;
+  battleAnimationLoopPauseMs: number;
 }
 
 export interface RenderedPanel {

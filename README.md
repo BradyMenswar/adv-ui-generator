@@ -14,26 +14,27 @@ npm install
 npm run dev
 ```
 
-Paste a Showdown export, choose a template and native/2×/3×/4×/6×/8×/10×
-output, then generate. Each result has Copy PNG and Download actions. The
-default 10× size is intended for presentation software that resamples images.
+Paste a Showdown export, choose native/2×/3×/4×/6×/8×/10× output, then
+generate. Each result has copy and download actions. The default 10× output is
+intended for presentation software that resamples images.
 
 ## Project shape
 
 - `@pkmn/sets` is the only team parser.
 - `@pkmn/dex` supplies canonical Gen 3 names and validation.
 - `@pkmn/data` calculates the displayed Gen 3 stats.
-- `@pkmn/img` supplies sprite and icon paths or sheet offsets.
-- Bulbagarden Archives supplies the two-frame Gen III–V menu sprites used to
-  generate static-menu PNG and animated GIF assets.
+- `@pkmn/img` supplies menu and item icon paths or sheet offsets.
+- Bulbagarden Archives supplies the two-frame Gen III–V menu sprites and the
+  normal and Shiny Emerald battle animations used to generate PNG and GIF
+  assets.
 - PixiJS composites the native-resolution PNG.
 - `src/render/template.ts` contains the integer layout coordinates and bitmap
   font glyph bounds for the artwork in `public/assets/ui`.
 
 The app never hotlinks image resources at runtime. Run `npm run assets:mirror`
 to refresh the pinned local Showdown-derived sprites and sheets used by the
-current dependency versions and the Gen III menu-sprite APNGs mirrored from
-Bulbagarden Archives.
+current dependency versions, the Gen III menu-sprite APNGs, and the normal and
+Shiny Emerald front-sprite APNGs mirrored from Bulbagarden Archives.
 
 ## Templates and artwork
 

@@ -75,20 +75,30 @@ export class App {
           <label for="team-input">Showdown export or packed team</label>
           <textarea id="team-input" spellcheck="false" placeholder="Paste a Pokémon Showdown team here…"></textarea>
           <div class="form-row">
-            <div class="option-field">
-              <label for="scale-select">Output size</label>
-              <select id="scale-select">
-                <option value="1">Native</option>
-                <option value="2">2×</option>
-                <option value="3">3×</option>
-                <option value="4">4×</option>
-                <option value="6">6×</option>
-                <option value="8">8×</option>
-                <option value="10" selected>10×</option>
-              </select>
+            <div class="generation-options">
+              <div class="option-field">
+                <label for="scale-select">Output size</label>
+                <select id="scale-select">
+                  <option value="1">Native</option>
+                  <option value="2">2×</option>
+                  <option value="3">3×</option>
+                  <option value="4">4×</option>
+                  <option value="6">6×</option>
+                  <option value="8">8×</option>
+                  <option value="10" selected>10×</option>
+                </select>
+              </div>
+              <div class="option-field">
+                <label for="loop-pause-input">Loop pause</label>
+                <div class="number-with-unit">
+                  <input id="loop-pause-input" type="number" min="0" max="10" step="0.1" value="1.5">
+                  <span>sec</span>
+                </div>
+              </div>
             </div>
             <button class="primary-button" id="generate-button" type="button">Load team &amp; generate</button>
           </div>
+          <p class="animation-note">GIFs preserve original frame timing and use the selected output size.</p>
           <section class="standalone-tool" aria-labelledby="custom-title-heading">
             <div>
               <h2 id="custom-title-heading">Custom title</h2>
@@ -124,7 +134,7 @@ export class App {
             <p class="title-message" id="generic-text-message" aria-live="polite"></p>
           </section>
           <div id="messages" class="messages" aria-live="polite"></div>
-          <p class="source-note">Parsing, names, stats, and image lookup follow the MIT-licensed Pokémon Showdown-compatible <code>@pkmn</code> packages.</p>
+          <p class="source-note">Parsing, names, stats, and image lookup follow the MIT-licensed Pokémon Showdown-compatible <code>@pkmn</code> packages. Menu and Emerald animation files are mirrored from <a href="https://archives.bulbagarden.net/" target="_blank" rel="noreferrer">Bulbagarden Archives</a>.</p>
         </section>
         <section class="output-pane" aria-labelledby="output-heading">
           <div class="section-heading output-heading">
@@ -174,6 +184,10 @@ export class App {
         this.genericTextAutoWidthInput.checked;
     });
     this.scaleSelect.addEventListener(
+      "change",
+      () => void this.rerenderForScale(),
+    );
+    this.loopPauseInput.addEventListener(
       "change",
       () => void this.rerenderForScale(),
     );
@@ -238,8 +252,21 @@ export class App {
     return this.root.querySelector<HTMLSelectElement>("#scale-select")!;
   }
 
+  private get loopPauseInput(): HTMLInputElement {
+    return this.root.querySelector<HTMLInputElement>("#loop-pause-input")!;
+  }
+
   private get renderOptions(): Omit<RenderOptions, "templateId"> {
     const scaleValue = Number(this.scaleSelect.value);
+    const requestedPauseSeconds = this.loopPauseInput.valueAsNumber;
+    const pauseSeconds = Number.isFinite(requestedPauseSeconds)
+      ? Math.min(10, Math.max(0, requestedPauseSeconds))
+      : 1.5;
+    const baseOptions = {
+      battleSpriteOutput: "static" as const,
+      battleAnimationLoopPauseMs: Math.round(pauseSeconds * 1000),
+      menuSpriteOutput: "png" as const,
+    };
     switch (scaleValue) {
       case 2:
       case 3:
@@ -247,9 +274,9 @@ export class App {
       case 6:
       case 8:
       case 10:
-        return { scale: scaleValue, menuSpriteOutput: "png" };
+        return { scale: scaleValue, ...baseOptions };
       default:
-        return { scale: 1, menuSpriteOutput: "png" };
+        return { scale: 1, ...baseOptions };
     }
   }
 
@@ -293,9 +320,11 @@ export class App {
           .map((setIndex) => {
             const set = this.parsedSets[setIndex];
             const selected = setIndex === this.selectedSetIndex;
-            const spriteUrl = showdownAssets.pokemonSprite(set.species ?? "", {
-              shiny: set.shiny,
-            }).url;
+            const spriteUrl =
+              showdownAssets.pokemonEmeraldSprite(set.species ?? "", {
+                shiny: set.shiny,
+              })?.url ??
+              showdownAssets.pokemonMenuSprite(set.species ?? "").url;
             return `<button class="member-button${selected ? " is-selected" : ""}" type="button" data-set-index="${setIndex}" aria-pressed="${selected}">
               <img src="${spriteUrl}" alt="" aria-hidden="true">
               <span>${escapeHtml(displayName(set))}</span>
@@ -342,36 +371,54 @@ export class App {
           template.kind === "generic-text"
         )
           continue;
-        const outputs =
+        const menuOutputs =
           template.kind === "pokemon-spotlight-small"
             ? (["png", "gif"] as const)
             : (["png"] as const);
-        for (const menuSpriteOutput of outputs) {
-          const title =
-            outputs.length === 1
-              ? template.label
-              : `${template.label} (${menuSpriteOutput.toUpperCase()})`;
-          try {
-            const panel = await this.renderer.render(
-              selectedSet,
-              this.selectedSetIndex,
-              {
-                ...this.renderOptions,
+        const emeraldAsset = showdownAssets.pokemonEmeraldSprite(
+          selectedSet.species ?? "",
+          { shiny: selectedSet.shiny },
+        );
+        const battleOutputs =
+          emeraldAsset &&
+          (template.kind === "pokemon-overview" ||
+            template.kind === "pokemon-spotlight")
+            ? (["static", "once", "loop"] as const)
+            : (["static"] as const);
+        for (const menuSpriteOutput of menuOutputs) {
+          for (const battleSpriteOutput of battleOutputs) {
+            const variant =
+              menuOutputs.length > 1
+                ? menuSpriteOutput.toUpperCase()
+                : battleSpriteOutput === "static"
+                  ? "PNG"
+                  : battleSpriteOutput === "once"
+                    ? "GIF · play once"
+                    : `GIF · loop + ${(this.renderOptions.battleAnimationLoopPauseMs / 1000).toFixed(1)}s pause`;
+            const title = `${template.label} (${variant})`;
+            try {
+              const panel = await this.renderer.render(
+                selectedSet,
+                this.selectedSetIndex,
+                {
+                  ...this.renderOptions,
+                  templateId: template.id,
+                  menuSpriteOutput,
+                  battleSpriteOutput,
+                },
+              );
+              this.renderedEntries.push({
+                panel,
+                title,
                 templateId: template.id,
-                menuSpriteOutput,
-              },
-            );
-            this.renderedEntries.push({
-              panel,
-              title,
-              templateId: template.id,
-              scope: "pokemon",
-            });
-          } catch (error) {
-            renderIssues.push({
-              setIndex: this.selectedSetIndex,
-              message: `${title}: ${error instanceof Error ? error.message : "Rendering failed."}`,
-            });
+                scope: "pokemon",
+              });
+            } catch (error) {
+              renderIssues.push({
+                setIndex: this.selectedSetIndex,
+                message: `${title}: ${error instanceof Error ? error.message : "Rendering failed."}`,
+              });
+            }
           }
         }
       }
@@ -646,7 +693,7 @@ export class App {
         <img src="${panel.previewUrl}" alt="${escapeHtml(entry.title)} for ${escapeHtml(panel.label)}" width="${panel.width}" height="${panel.height}">
       </div>
       <div class="result-actions">
-        <button type="button" data-copy="${index}">Copy ${panel.format}</button>
+        ${panel.format === "PNG" ? `<button type="button" data-copy="${index}">Copy PNG</button>` : ""}
         <button type="button" data-download="${index}">Download</button>
         <span class="action-status" id="action-status-${index}" aria-live="polite"></span>
       </div>
@@ -670,10 +717,7 @@ export class App {
       ]);
       status.textContent = "Copied";
     } catch {
-      status.textContent =
-        panel.format === "GIF"
-          ? "Animated GIF copy is unsupported here—use Download."
-          : "Copy was blocked—use Download.";
+      status.textContent = "Copy was blocked—use Download.";
     }
   }
 
@@ -716,6 +760,7 @@ export class App {
     this.genericTextWidthInput.disabled =
       busy || this.genericTextAutoWidthInput.checked;
     this.scaleSelect.disabled = busy;
+    this.loopPauseInput.disabled = busy;
     this.memberSelector
       .querySelectorAll<HTMLButtonElement>("button")
       .forEach((memberButton) => (memberButton.disabled = busy));

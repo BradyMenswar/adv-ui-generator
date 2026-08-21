@@ -264,14 +264,56 @@ button:focus-visible {
 .form-row {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  grid-template-columns: 1fr;
+  gap: 9px;
+}
+.form-row > .primary-button {
+  width: 100%;
+}
+.generation-options {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
   gap: 9px;
 }
 .option-field {
   min-width: 0;
   display: grid;
   gap: 5px;
+}
+.number-with-unit {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  background: #fffdf7;
+  border: 1px solid #948d7e;
+  border-radius: 4px;
+}
+.number-with-unit input {
+  min-width: 0;
+  width: 100%;
+  height: 32px;
+  padding: 0 2px 0 8px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+.number-with-unit span {
+  padding-right: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.number-with-unit:focus-within {
+  outline: 2px solid #7c643d;
+  outline-offset: 2px;
+}
+.animation-note {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
 }
 .option-field label {
   font-size: 12px;
@@ -315,6 +357,9 @@ select,
 }
 .source-note code {
   font-family: Monaco, monospace;
+}
+.source-note a {
+  color: var(--green);
 }
 .member-selector:empty {
   display: none;

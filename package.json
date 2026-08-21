@@ -6,6 +6,8 @@
   "scripts": {
     "start": "npm run dev",
     "build": "npm run lint && tsc && vite build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist --dotfiles --nojekyll -m \"Deploy site\"",
     "lint": "eslint .",
     "dev": "vite",
     "test": "vitest run",
@@ -23,6 +25,7 @@
     "eslint": "^9.21.0",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.2.6",
+    "gh-pages": "^6.3.0",
     "prettier": "^3.5.3",
     "typescript": "~5.7.3",
     "typescript-eslint": "^8.25.0",

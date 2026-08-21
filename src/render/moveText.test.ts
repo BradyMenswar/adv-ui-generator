@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   moveDescriptionText,
   maximumMovePp,
+  pokemonOverviewMoveText,
   rightAlignedMoveStats,
   smallFontText,
 } from "./moveText";
@@ -26,6 +27,25 @@ describe("moveDescriptionText", () => {
 
   it("preserves mapped apostrophes in small-font text", () => {
     expect(smallFontText("User's move—it works")).toBe("User's moveit works");
+  });
+
+  it("uses type-badge abbreviations for Hidden Power in Pokémon overviews", () => {
+    expect(pokemonOverviewMoveText("Hidden Power Electric")).toBe(
+      "Hidden Power Electr",
+    );
+    expect(pokemonOverviewMoveText("Hidden Power Fighting")).toBe(
+      "Hidden Power Fight",
+    );
+    expect(pokemonOverviewMoveText("Hidden Power Psychic")).toBe(
+      "Hidden Power Psychc",
+    );
+  });
+
+  it("leaves other move names and unknown Hidden Power suffixes unchanged", () => {
+    expect(pokemonOverviewMoveText("Thunderbolt")).toBe("Thunderbolt");
+    expect(pokemonOverviewMoveText("Hidden Power Stellar")).toBe(
+      "Hidden Power Stellar",
+    );
   });
 
   it("anchors move stats to accuracy with a fixed dynamic gap", () => {

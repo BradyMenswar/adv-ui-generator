@@ -81,6 +81,9 @@ export class App {
                 <option value="1">Native</option>
                 <option value="2">2×</option>
                 <option value="3" selected>3×</option>
+                <option value="4">4×</option>
+                <option value="6">6×</option>
+                <option value="8">8×</option>
               </select>
             </div>
             <button class="primary-button" id="generate-button" type="button">Load team &amp; generate</button>
@@ -153,7 +156,16 @@ export class App {
 
   private get renderOptions(): Omit<RenderOptions, "templateId"> {
     const scaleValue = Number(this.scaleSelect.value);
-    return { scale: scaleValue === 2 ? 2 : scaleValue === 3 ? 3 : 1 };
+    switch (scaleValue) {
+      case 2:
+      case 3:
+      case 4:
+      case 6:
+      case 8:
+        return { scale: scaleValue };
+      default:
+        return { scale: 1 };
+    }
   }
 
   private async loadTeam(): Promise<void> {

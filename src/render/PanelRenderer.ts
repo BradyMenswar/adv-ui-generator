@@ -19,6 +19,7 @@ import { BitmapFontRenderer } from "./BitmapFontRenderer";
 import {
   moveDescriptionText,
   maximumMovePp,
+  pokemonOverviewMoveText,
   rightAlignedMoveStats,
   smallFontText,
 } from "./moveText";
@@ -35,6 +36,7 @@ import type {
   AssetSource,
   RenderedPanel,
   RenderOptions,
+  RenderScale,
   StatBarSlot,
   StatId,
   StatPreviewTemplateDefinition,
@@ -241,7 +243,7 @@ export class PanelRenderer {
   private async exportPanel(
     stage: Container,
     dimensions: { width: number; height: number },
-    scale: 1 | 2 | 3,
+    scale: RenderScale,
     metadata: Pick<
       RenderedPanel,
       "sourceSetIndex" | "set" | "speciesId" | "label"
@@ -522,7 +524,7 @@ export class PanelRenderer {
       if (!move) continue;
       stage.addChild(
         await this.font.create(
-          smallFontText(move),
+          smallFontText(pokemonOverviewMoveText(move)),
           shiftedSlot(
             template.text.move,
             template.text.move.x,

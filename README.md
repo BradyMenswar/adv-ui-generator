@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Paste a Showdown export, choose a template and native/2×/3× output, then
+Paste a Showdown export, choose a template and native/2×/3×/4×/6×/8× output, then
 generate. Each result has Copy PNG and Download actions.
 
 ## Project shape

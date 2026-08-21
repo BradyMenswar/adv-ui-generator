@@ -1,0 +1,160 @@
+import type {
+  BitmapFontDefinition,
+  BitmapGlyph,
+  TemplateDefinition,
+} from "./types";
+import { publicAssetUrl } from "./publicAssetUrl";
+
+const largeFontUrl = publicAssetUrl("/assets/ui/font-large.png");
+const smallFontUrl = publicAssetUrl("/assets/ui/font-small.png");
+const panelBackgroundUrl = publicAssetUrl("/assets/ui/pokemon-overview.png");
+
+function glyphs(
+  tokens: string[],
+  bounds: Array<[number, number]>,
+  letterSpacing = 1,
+): BitmapGlyph[] {
+  return tokens.map((token, index) => {
+    const [x, lastX] = bounds[index];
+    const width = lastX - x + 1;
+    return { token, x, width, height: 16, advance: width + letterSpacing };
+  });
+}
+
+const alphabet = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
+
+export const LARGE_FONT: BitmapFontDefinition = {
+  sheetUrl: largeFontUrl,
+  glyphs: glyphs(alphabet, [
+    [0, 7],
+    [10, 17],
+    [20, 27],
+    [30, 37],
+    [40, 47],
+    [50, 57],
+    [60, 67],
+    [70, 77],
+    [80, 86],
+    [89, 96],
+    [99, 106],
+    [109, 115],
+    [118, 125],
+    [128, 135],
+    [138, 145],
+    [148, 155],
+    [157, 164],
+    [167, 174],
+    [177, 184],
+    [186, 192],
+    [195, 202],
+    [205, 212],
+    [215, 222],
+    [225, 232],
+    [235, 241],
+    [244, 251],
+  ]),
+  lineHeight: 16,
+  fallbackGlyph: "?",
+};
+
+export const SMALL_FONT: BitmapFontDefinition = {
+  sheetUrl: smallFontUrl,
+  glyphs: [
+    ...glyphs(
+      [...alphabet, ..."0123456789", "!", "?", ".", "Lv", "♂", "♀", "+", "-"],
+      [
+        [0, 4],
+        [6, 10],
+        [12, 16],
+        [18, 22],
+        [24, 28],
+        [30, 34],
+        [36, 40],
+        [42, 46],
+        [48, 51],
+        [53, 57],
+        [59, 63],
+        [65, 69],
+        [71, 75],
+        [77, 81],
+        [83, 87],
+        [89, 93],
+        [95, 99],
+        [101, 105],
+        [107, 111],
+        [113, 116],
+        [118, 122],
+        [124, 128],
+        [130, 134],
+        [136, 140],
+        [142, 145],
+        [147, 151],
+        [153, 157],
+        [160, 163],
+        [165, 169],
+        [171, 175],
+        [177, 181],
+        [183, 187],
+        [189, 193],
+        [195, 199],
+        [201, 205],
+        [207, 211],
+        [213, 214],
+        [216, 220],
+        [222, 224],
+        [226, 233],
+        [235, 239],
+        [241, 245],
+        [247, 252],
+        [254, 258],
+      ],
+      0,
+    ),
+  ],
+  lineHeight: 16,
+  spaceWidth: 2,
+  fallbackGlyph: "?",
+};
+
+export const POKEMON_PANEL_TEMPLATE: TemplateDefinition = {
+  id: "adv-pokemon-panel",
+  width: 399,
+  height: 94,
+  background: { url: panelBackgroundUrl },
+  sprite: { x: -8, y: -2 },
+  spriteMask: { x: 8, y: 16, width: 65, height: 64 },
+  itemIcon: { x: 86, y: 60 },
+  typeIcons: [
+    { x: 325, y: 8 },
+    { x: 359, y: 8 },
+  ],
+  moveRows: [20, 36, 52, 68],
+  statRows: {
+    hp: { x: 367, y: 19 },
+    atk: { x: 367, y: 29 },
+    def: { x: 367, y: 39 },
+    spa: { x: 367, y: 49 },
+    spd: { x: 367, y: 59 },
+    spe: { x: 367, y: 69 },
+  },
+  statBars: {
+    hp: { x: 303, y: 29, width: 60, height: 4 },
+    atk: { x: 303, y: 39, width: 60, height: 4 },
+    def: { x: 303, y: 49, width: 60, height: 4 },
+    spa: { x: 303, y: 59, width: 60, height: 4 },
+    spd: { x: 303, y: 69, width: 60, height: 4 },
+    spe: { x: 303, y: 79, width: 60, height: 4 },
+  },
+  text: {
+    name: { x: 10, y: 74, maxWidth: 69, size: 8, color: 0xffffff },
+    level: { x: 90, y: 17, maxWidth: 19, size: 8, color: 0xffffff },
+    ability: { x: 115, y: 20, maxWidth: 64, size: 8, color: 0xffffff },
+    item: { x: 115, y: 68, maxWidth: 64, size: 8, color: 0xffffff },
+    move: { x: 186, y: 0, maxWidth: 91, size: 8, color: 0xffffff },
+    stat: { x: 0, y: 0, maxWidth: 58, size: 8, color: 0xffffff },
+  },
+};
+
+export const TEMPLATES = new Map([
+  [POKEMON_PANEL_TEMPLATE.id, POKEMON_PANEL_TEMPLATE],
+]);

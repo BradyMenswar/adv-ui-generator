@@ -166,6 +166,93 @@ textarea {
   border-radius: 4px;
   outline: none;
 }
+.standalone-tool {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.standalone-tool h2,
+.standalone-tool p {
+  margin: 0;
+}
+.standalone-tool h2 {
+  font-size: 14px;
+}
+.standalone-tool > div:first-child p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.standalone-tool > label {
+  display: block;
+  margin: 12px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.custom-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+}
+.custom-title-row input {
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #fffdf7;
+  border: 1px solid #948d7e;
+  border-radius: 4px;
+}
+.generic-text-input {
+  height: 76px;
+  min-height: 64px;
+  padding: 9px 10px;
+}
+.generic-text-controls {
+  margin-top: 9px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 9px;
+}
+.generic-text-controls input[type="number"] {
+  min-width: 0;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #fffdf7;
+  border: 1px solid #948d7e;
+  border-radius: 4px;
+}
+.generic-text-width-heading {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.checkbox-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+}
+.checkbox-control input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--green);
+}
+.title-message {
+  min-height: 16px;
+  margin-top: 5px !important;
+  color: var(--muted);
+  font-size: 11px;
+}
 textarea:focus,
 input:focus,
 select:focus,
@@ -316,6 +403,9 @@ select,
 .asset-grid--team {
   grid-template-columns: minmax(260px, 520px);
 }
+.asset-grid--standalone {
+  grid-template-columns: minmax(260px, 520px);
+}
 
 .result-item {
   min-width: 0;
@@ -455,12 +545,19 @@ select,
   .form-row {
     grid-template-columns: 1fr;
   }
+  .custom-title-row {
+    grid-template-columns: 1fr;
+  }
+  .generic-text-controls {
+    grid-template-columns: 1fr;
+  }
   .member-list {
     grid-template-columns: repeat(2, minmax(112px, 1fr));
     overflow-x: visible;
   }
   .asset-grid,
-  .asset-grid--team {
+  .asset-grid--team,
+  .asset-grid--standalone {
     grid-template-columns: 1fr;
   }
   .result-item--wide {

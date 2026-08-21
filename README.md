@@ -3,6 +3,9 @@
 A local Vite application that turns Pokémon Showdown team exports into
 copyable pixel-art PNG panels for Gen 3 ADV.
 
+## DISCLAIMER
+Despite myself being a software engineer, this website is pure AI slop as a means to an end of dynamically generating these templates of the pixel art that I did by hand.
+
 ## Run it
 
 ```sh

@@ -21,17 +21,24 @@ export interface TextSlot extends Point {
   maxWidth: number;
   size: number;
   color: number;
+  align?: "left" | "center" | "right";
 }
 
 export type StatBarSlot = AtlasFrame;
 
 export type StatId = "hp" | "atk" | "def" | "spa" | "spd" | "spe";
 
-export interface TemplateDefinition {
+interface BaseTemplateDefinition {
   id: string;
+  label: string;
   width: number;
   height: number;
   background?: AssetSource;
+  filenameSuffix?: string;
+}
+
+export interface PokemonOverviewTemplateDefinition extends BaseTemplateDefinition {
+  kind: "pokemon-overview";
   sprite: Point;
   spriteMask: AtlasFrame;
   itemIcon: Point;
@@ -48,6 +55,63 @@ export interface TemplateDefinition {
     stat: TextSlot;
   };
 }
+
+export interface StatPreviewTemplateDefinition extends BaseTemplateDefinition {
+  kind: "stat-preview";
+  hiddenPowerIcon: Point;
+  statRows: Record<
+    StatId,
+    {
+      base: Point;
+      bar: StatBarSlot;
+      ev: Point;
+      iv: Point;
+      total: Point;
+    }
+  >;
+  text: {
+    value: TextSlot;
+    ev: TextSlot;
+    natureSign: TextSlot;
+    iv: TextSlot;
+    nature: TextSlot;
+  };
+}
+
+export interface TeamPreviewTemplateDefinition extends BaseTemplateDefinition {
+  kind: "team-preview";
+  iconSlots: Point[];
+  text: {
+    name: TextSlot;
+  };
+}
+
+export interface PokemonNameTemplateDefinition extends BaseTemplateDefinition {
+  kind: "pokemon-name";
+  background: AssetSource;
+  capWidth: number;
+  paddingX: number;
+  textY: number;
+}
+
+export interface PokemonSpotlightTemplateDefinition extends BaseTemplateDefinition {
+  kind: "pokemon-spotlight";
+  sprite: Point;
+  spriteMask: AtlasFrame;
+}
+
+export interface PokemonSpotlightSmallTemplateDefinition extends BaseTemplateDefinition {
+  kind: "pokemon-spotlight-small";
+  icon: Point;
+}
+
+export type TemplateDefinition =
+  | PokemonOverviewTemplateDefinition
+  | StatPreviewTemplateDefinition
+  | TeamPreviewTemplateDefinition
+  | PokemonNameTemplateDefinition
+  | PokemonSpotlightTemplateDefinition
+  | PokemonSpotlightSmallTemplateDefinition;
 
 export interface BitmapGlyph {
   token: string;
@@ -75,6 +139,7 @@ export interface RenderedPanel {
   sourceSetIndex: number;
   set: Partial<PokemonSet>;
   speciesId: string;
+  label: string;
   width: number;
   height: number;
   blob: Blob;

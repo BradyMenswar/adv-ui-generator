@@ -5,6 +5,44 @@ import type { BitmapFontDefinition, TextSlot } from "./types";
 export class BitmapFontRenderer {
   constructor(private readonly definition?: BitmapFontDefinition) {}
 
+  measure(text: string): number {
+    if (!this.definition) return 0;
+
+    const normalizedText = text.toUpperCase();
+    const glyphs = [...this.definition.glyphs].sort(
+      (left, right) => right.token.length - left.token.length,
+    );
+    let cursor = 0;
+    let characterIndex = 0;
+    let width = 0;
+
+    while (characterIndex < normalizedText.length) {
+      const remainder = normalizedText.slice(characterIndex);
+      if (remainder.startsWith(" ")) {
+        cursor += this.definition.spaceWidth ?? 3;
+        width = cursor;
+        characterIndex += 1;
+        continue;
+      }
+
+      const matched = glyphs.find((glyph) =>
+        remainder.startsWith(glyph.token.toUpperCase()),
+      );
+      const glyph =
+        matched ??
+        this.definition.glyphs.find(
+          (candidate) => candidate.token === this.definition?.fallbackGlyph,
+        );
+      characterIndex += matched?.token.length ?? 1;
+      if (!glyph) continue;
+
+      width = cursor + glyph.width;
+      cursor += glyph.advance ?? glyph.width + 1;
+    }
+
+    return width;
+  }
+
   async create(text: string, slot: TextSlot): Promise<Container> {
     if (!this.definition) return this.createFallback(text, slot);
 
@@ -53,7 +91,7 @@ export class BitmapFontRenderer {
       cursor += advance;
     }
 
-    container.x = slot.x;
+    container.x = slot.x + this.alignmentOffset(slot, cursor);
     container.y = slot.y;
     return container;
   }
@@ -73,9 +111,20 @@ export class BitmapFontRenderer {
       },
     });
     label.roundPixels = true;
+    label.x = this.alignmentOffset(slot, label.width);
     container.x = slot.x;
     container.y = slot.y;
     container.addChild(label);
     return container;
+  }
+
+  private alignmentOffset(slot: TextSlot, contentWidth: number): number {
+    if (slot.align === "right") {
+      return Math.round(slot.maxWidth - contentWidth);
+    }
+    if (slot.align === "center") {
+      return Math.round((slot.maxWidth - contentWidth) / 2);
+    }
+    return 0;
   }
 }

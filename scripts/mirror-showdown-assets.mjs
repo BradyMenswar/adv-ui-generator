@@ -16,10 +16,6 @@ const species = dex.species
 const urls = new Set([
   Icons.getPokemon("Pikachu").url,
   Icons.getItem("Leftovers").url,
-  ...dex.types
-    .all()
-    .filter((type) => type.exists && !type.isNonstandard)
-    .map((type) => Icons.getType(type.name).url),
 ]);
 
 for (const pokemon of species) {

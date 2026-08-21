@@ -1,5 +1,5 @@
 import { PanelRenderer } from "../render/PanelRenderer";
-import { POKEMON_PANEL_TEMPLATE } from "../render/template";
+import { STAT_PREVIEW_TEMPLATE, TEMPLATES } from "../render/template";
 import type { RenderedPanel, RenderOptions } from "../render/types";
 import { parseAdvTeam, type TeamIssue } from "../showdown/team";
 
@@ -21,6 +21,7 @@ IVs: 0 Atk
 - Ice Punch
 - Will-O-Wisp
 - Explosion`;
+const SAMPLE_TEAM_NAME = "DOUBLE SPIN";
 
 function escapeHtml(value: string): string {
   return value
@@ -36,6 +37,12 @@ export class App {
   private generating = false;
 
   constructor(private readonly root: HTMLElement) {
+    const templateOptions = [...TEMPLATES.values()]
+      .map(
+        (template) =>
+          `<option value="${template.id}"${template.id === STAT_PREVIEW_TEMPLATE.id ? " selected" : ""}>${escapeHtml(template.label)}</option>`,
+      )
+      .join("");
     this.root.innerHTML = `
       <header class="app-header">
         <div class="brand-mark" aria-hidden="true">A</div>
@@ -50,16 +57,20 @@ export class App {
             <h2 id="paste-heading">Team paste</h2>
             <button class="text-button" id="sample-button" type="button">Load example</button>
           </div>
+          <label for="team-name">Team name</label>
+          <input id="team-name" class="team-name-input" type="text" value="${SAMPLE_TEAM_NAME}" maxlength="40">
           <label for="team-input">Showdown export or packed team</label>
           <textarea id="team-input" spellcheck="false" placeholder="Paste a Pokémon Showdown team here…"></textarea>
           <div class="form-row">
-            <label for="scale-select">PNG size</label>
-            <select id="scale-select">
-              <option value="1">Native · 399×94</option>
-              <option value="2">2× · 798×188</option>
-              <option value="3" selected>3× · 1197×282</option>
-            </select>
-            <button class="primary-button" id="generate-button" type="button">Generate panels</button>
+            <div class="option-field">
+              <label for="template-select">Template</label>
+              <select id="template-select">${templateOptions}</select>
+            </div>
+            <div class="option-field">
+              <label for="scale-select">PNG size</label>
+              <select id="scale-select"></select>
+            </div>
+            <button class="primary-button" id="generate-button" type="button">Generate images</button>
           </div>
           <div id="messages" class="messages" aria-live="polite"></div>
           <p class="source-note">Parsing, names, stats, and image lookup follow the MIT-licensed Pokémon Showdown-compatible <code>@pkmn</code> packages.</p>
@@ -72,7 +83,7 @@ export class App {
           <div id="results" class="results">
             <div class="empty-state">
               <div class="empty-preview" aria-hidden="true"></div>
-              <p>Paste a team to render one image for each Pokémon.</p>
+              <p>Paste a team, then choose an image template.</p>
             </div>
           </div>
         </section>
@@ -88,13 +99,18 @@ export class App {
     this.root
       .querySelector("#generate-button")
       ?.addEventListener("click", () => void this.generate());
+    this.templateSelect.addEventListener("change", () =>
+      this.updateScaleOptions(),
+    );
     this.root.querySelector("#sample-button")?.addEventListener("click", () => {
       this.input.value = SAMPLE_TEAM;
+      this.teamNameInput.value = SAMPLE_TEAM_NAME;
       this.input.focus();
     });
     window.addEventListener("beforeunload", () => this.destroy());
 
     this.input.value = SAMPLE_TEAM;
+    this.updateScaleOptions();
     void this.generate();
   }
 
@@ -106,8 +122,34 @@ export class App {
     return this.root.querySelector<HTMLElement>("#messages")!;
   }
 
+  private get teamNameInput(): HTMLInputElement {
+    return this.root.querySelector<HTMLInputElement>("#team-name")!;
+  }
+
   private get results(): HTMLElement {
     return this.root.querySelector<HTMLElement>("#results")!;
+  }
+
+  private get templateSelect(): HTMLSelectElement {
+    return this.root.querySelector<HTMLSelectElement>("#template-select")!;
+  }
+
+  private updateScaleOptions(): void {
+    const template = TEMPLATES.get(this.templateSelect.value);
+    if (!template) return;
+    const scaleSelect =
+      this.root.querySelector<HTMLSelectElement>("#scale-select")!;
+    const currentScale = Number(scaleSelect.value) || 3;
+    scaleSelect.innerHTML = ([1, 2, 3] as const)
+      .map((scale) => {
+        const label = scale === 1 ? "Native" : `${scale}×`;
+        const dimensions =
+          template.kind === "pokemon-name"
+            ? `dynamic×${template.height * scale}`
+            : `${template.width * scale}×${template.height * scale}`;
+        return `<option value="${scale}"${scale === currentScale ? " selected" : ""}>${label} · ${dimensions}</option>`;
+      })
+      .join("");
   }
 
   private async generate(): Promise<void> {
@@ -128,28 +170,52 @@ export class App {
         this.root.querySelector<HTMLSelectElement>("#scale-select")?.value,
       );
       const options: RenderOptions = {
-        templateId: POKEMON_PANEL_TEMPLATE.id,
+        templateId: this.templateSelect.value,
         scale: scaleValue === 2 ? 2 : scaleValue === 3 ? 3 : 1,
       };
       const renderIssues: TeamIssue[] = [];
+      const template = TEMPLATES.get(options.templateId);
 
-      for (let index = 0; index < parsed.sets.length; index += 1) {
-        if (invalidIndexes.has(index)) continue;
+      if (template?.kind === "team-preview") {
         try {
-          const panel = await this.renderer.render(
-            parsed.sets[index],
-            index,
-            options,
+          const validSets = parsed.sets.filter(
+            (_, index) => !invalidIndexes.has(index),
           );
-          this.renderedPanels.push(panel);
+          if (validSets.length) {
+            const panel = await this.renderer.renderTeam(
+              validSets,
+              this.teamNameInput.value,
+              options,
+            );
+            this.renderedPanels.push(panel);
+          }
         } catch (error) {
           renderIssues.push({
-            setIndex: index,
             message:
               error instanceof Error
                 ? error.message
-                : "Panel rendering failed.",
+                : "Team preview rendering failed.",
           });
+        }
+      } else {
+        for (let index = 0; index < parsed.sets.length; index += 1) {
+          if (invalidIndexes.has(index)) continue;
+          try {
+            const panel = await this.renderer.render(
+              parsed.sets[index],
+              index,
+              options,
+            );
+            this.renderedPanels.push(panel);
+          } catch (error) {
+            renderIssues.push({
+              setIndex: index,
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "Panel rendering failed.",
+            });
+          }
         }
       }
       this.showIssues([...parsed.issues, ...renderIssues]);
@@ -174,8 +240,7 @@ export class App {
     count.textContent = `${this.renderedPanels.length} ${this.renderedPanels.length === 1 ? "panel" : "panels"}`;
     this.results.innerHTML = this.renderedPanels
       .map((panel, index) => {
-        const species =
-          panel.set.name || panel.set.species || "Unknown Pokémon";
+        const species = panel.label;
         return `
           <article class="result-item">
             <div class="result-title">
@@ -252,7 +317,7 @@ export class App {
     const button =
       this.root.querySelector<HTMLButtonElement>("#generate-button")!;
     button.disabled = busy;
-    button.textContent = busy ? "Rendering…" : "Generate panels";
+    button.textContent = busy ? "Rendering…" : "Generate images";
   }
 
   private clearPanels(): void {

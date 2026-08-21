@@ -8,6 +8,15 @@ import { publicAssetUrl } from "./publicAssetUrl";
 const largeFontUrl = publicAssetUrl("/assets/ui/font-large.png");
 const smallFontUrl = publicAssetUrl("/assets/ui/font-small.png");
 const panelBackgroundUrl = publicAssetUrl("/assets/ui/pokemon-overview.png");
+const statPreviewBackgroundUrl = publicAssetUrl("/assets/ui/stat-preview.png");
+const teamPreviewBackgroundUrl = publicAssetUrl("/assets/ui/team-preview.png");
+const pokemonNameBackgroundUrl = publicAssetUrl("/assets/ui/pokemon-name.png");
+const pokemonSpotlightBackgroundUrl = publicAssetUrl(
+  "/assets/ui/pokemon-spotlight.png",
+);
+const pokemonSpotlightSmallBackgroundUrl = publicAssetUrl(
+  "/assets/ui/pokemon-spotlight-small.png",
+);
 
 function glyphs(
   tokens: string[],
@@ -55,6 +64,14 @@ export const LARGE_FONT: BitmapFontDefinition = {
   ]),
   lineHeight: 16,
   fallbackGlyph: "?",
+};
+
+export const POKEMON_NAME_FONT: BitmapFontDefinition = {
+  ...LARGE_FONT,
+  glyphs: LARGE_FONT.glyphs.map((glyph) => ({
+    ...glyph,
+    advance: glyph.width,
+  })),
 };
 
 export const SMALL_FONT: BitmapFontDefinition = {
@@ -118,6 +135,8 @@ export const SMALL_FONT: BitmapFontDefinition = {
 
 export const POKEMON_PANEL_TEMPLATE: TemplateDefinition = {
   id: "adv-pokemon-panel",
+  label: "Pokémon overview",
+  kind: "pokemon-overview",
   width: 399,
   height: 94,
   background: { url: panelBackgroundUrl },
@@ -155,6 +174,158 @@ export const POKEMON_PANEL_TEMPLATE: TemplateDefinition = {
   },
 };
 
-export const TEMPLATES = new Map([
+export const STAT_PREVIEW_TEMPLATE: TemplateDefinition = {
+  id: "adv-stat-preview",
+  label: "Stat preview",
+  kind: "stat-preview",
+  width: 199,
+  height: 100,
+  filenameSuffix: "stat-preview",
+  background: { url: statPreviewBackgroundUrl },
+  hiddenPowerIcon: { x: 161, y: 80 },
+  statRows: {
+    hp: {
+      base: { x: 25, y: 9 },
+      bar: { x: 52, y: 19, width: 60, height: 4 },
+      ev: { x: 124, y: 9 },
+      iv: { x: 151, y: 9 },
+      total: { x: 173, y: 9 },
+    },
+    atk: {
+      base: { x: 25, y: 19 },
+      bar: { x: 52, y: 29, width: 60, height: 4 },
+      ev: { x: 124, y: 19 },
+      iv: { x: 151, y: 19 },
+      total: { x: 173, y: 19 },
+    },
+    def: {
+      base: { x: 25, y: 29 },
+      bar: { x: 52, y: 39, width: 60, height: 4 },
+      ev: { x: 124, y: 29 },
+      iv: { x: 151, y: 29 },
+      total: { x: 173, y: 29 },
+    },
+    spa: {
+      base: { x: 25, y: 39 },
+      bar: { x: 52, y: 49, width: 60, height: 4 },
+      ev: { x: 124, y: 39 },
+      iv: { x: 151, y: 39 },
+      total: { x: 173, y: 39 },
+    },
+    spd: {
+      base: { x: 25, y: 49 },
+      bar: { x: 52, y: 59, width: 60, height: 4 },
+      ev: { x: 124, y: 49 },
+      iv: { x: 151, y: 49 },
+      total: { x: 173, y: 49 },
+    },
+    spe: {
+      base: { x: 25, y: 59 },
+      bar: { x: 52, y: 69, width: 60, height: 4 },
+      ev: { x: 124, y: 59 },
+      iv: { x: 151, y: 59 },
+      total: { x: 173, y: 59 },
+    },
+  },
+  text: {
+    value: {
+      x: 0,
+      y: 0,
+      maxWidth: 20,
+      size: 8,
+      color: 0xffffff,
+      align: "right",
+    },
+    ev: {
+      x: 0,
+      y: 0,
+      maxWidth: 15,
+      size: 8,
+      color: 0xffffff,
+      align: "right",
+    },
+    natureSign: {
+      x: 139,
+      y: 0,
+      maxWidth: 6,
+      size: 8,
+      color: 0xffffff,
+      align: "left",
+    },
+    iv: {
+      x: 0,
+      y: 0,
+      maxWidth: 10,
+      size: 8,
+      color: 0xffffff,
+      align: "right",
+    },
+    nature: { x: 46, y: 76, maxWidth: 43, size: 8, color: 0xffffff },
+  },
+};
+
+export const TEAM_PREVIEW_TEMPLATE: TemplateDefinition = {
+  id: "adv-team-preview",
+  label: "Team preview",
+  kind: "team-preview",
+  width: 261,
+  height: 67,
+  filenameSuffix: "team-preview",
+  background: { url: teamPreviewBackgroundUrl },
+  iconSlots: [
+    { x: 8, y: 28 },
+    { x: 49, y: 28 },
+    { x: 90, y: 28 },
+    { x: 131, y: 28 },
+    { x: 172, y: 28 },
+    { x: 213, y: 28 },
+  ],
+  text: {
+    name: { x: 10, y: 1, maxWidth: 241, size: 16, color: 0xffffff },
+  },
+};
+
+export const POKEMON_NAME_TEMPLATE: TemplateDefinition = {
+  id: "adv-pokemon-name",
+  label: "Pokémon name",
+  kind: "pokemon-name",
+  width: 80,
+  height: 18,
+  filenameSuffix: "name",
+  background: { url: pokemonNameBackgroundUrl },
+  capWidth: 3,
+  paddingX: 2,
+  textY: -3,
+};
+
+export const POKEMON_SPOTLIGHT_TEMPLATE: TemplateDefinition = {
+  id: "adv-pokemon-spotlight",
+  label: "Pokémon spotlight",
+  kind: "pokemon-spotlight",
+  width: 80,
+  height: 84,
+  filenameSuffix: "spotlight",
+  background: { url: pokemonSpotlightBackgroundUrl },
+  sprite: { x: -8, y: -6 },
+  spriteMask: { x: 8, y: 12, width: 65, height: 64 },
+};
+
+export const POKEMON_SPOTLIGHT_SMALL_TEMPLATE: TemplateDefinition = {
+  id: "adv-pokemon-spotlight-small",
+  label: "Pokémon spotlight small",
+  kind: "pokemon-spotlight-small",
+  width: 43,
+  height: 47,
+  filenameSuffix: "spotlight-small",
+  background: { url: pokemonSpotlightSmallBackgroundUrl },
+  icon: { x: 2, y: 9 },
+};
+
+export const TEMPLATES = new Map<string, TemplateDefinition>([
   [POKEMON_PANEL_TEMPLATE.id, POKEMON_PANEL_TEMPLATE],
+  [STAT_PREVIEW_TEMPLATE.id, STAT_PREVIEW_TEMPLATE],
+  [TEAM_PREVIEW_TEMPLATE.id, TEAM_PREVIEW_TEMPLATE],
+  [POKEMON_NAME_TEMPLATE.id, POKEMON_NAME_TEMPLATE],
+  [POKEMON_SPOTLIGHT_TEMPLATE.id, POKEMON_SPOTLIGHT_TEMPLATE],
+  [POKEMON_SPOTLIGHT_SMALL_TEMPLATE.id, POKEMON_SPOTLIGHT_SMALL_TEMPLATE],
 ]);

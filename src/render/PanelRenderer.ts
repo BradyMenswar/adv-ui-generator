@@ -6,6 +6,7 @@ import {
   Assets,
   Container,
   Graphics,
+  NineSliceSprite,
   Rectangle,
   RenderTexture,
   Sprite,
@@ -16,14 +17,26 @@ import { showdownAssets } from "../showdown/assets";
 import { ADV_DEX } from "../showdown/team";
 import { BitmapFontRenderer } from "./BitmapFontRenderer";
 import { showdownStatBarScale } from "./statBarScale";
-import { POKEMON_PANEL_TEMPLATE, SMALL_FONT, TEMPLATES } from "./template";
+import {
+  LARGE_FONT,
+  POKEMON_NAME_FONT,
+  POKEMON_PANEL_TEMPLATE,
+  SMALL_FONT,
+  TEMPLATES,
+} from "./template";
 import type {
   AssetSource,
   RenderedPanel,
   RenderOptions,
+  StatBarSlot,
   StatId,
-  TemplateDefinition,
+  StatPreviewTemplateDefinition,
+  TeamPreviewTemplateDefinition,
   TextSlot,
+  PokemonOverviewTemplateDefinition,
+  PokemonNameTemplateDefinition,
+  PokemonSpotlightSmallTemplateDefinition,
+  PokemonSpotlightTemplateDefinition,
 } from "./types";
 
 const ADV = new Generations(Dex).get(3);
@@ -50,7 +63,7 @@ function createStatBar(
   value: number,
   stat: StatId,
   level: number,
-  slot: TemplateDefinition["statBars"][StatId],
+  slot: StatBarSlot,
 ): Graphics {
   const { percentage, colors } = showdownStatBarScale(value, stat, level);
   const width = Math.max(3, Math.round(slot.width * percentage));
@@ -67,6 +80,8 @@ function createStatBar(
 export class PanelRenderer {
   private readonly app = new Application();
   private readonly font = new BitmapFontRenderer(SMALL_FONT);
+  private readonly largeFont = new BitmapFontRenderer(LARGE_FONT);
+  private readonly pokemonNameFont = new BitmapFontRenderer(POKEMON_NAME_FONT);
   private initialized = false;
 
   async init(): Promise<void> {
@@ -95,19 +110,113 @@ export class PanelRenderer {
     await this.init();
     const template = TEMPLATES.get(options.templateId);
     if (!template) throw new Error(`Unknown template: ${options.templateId}`);
+    if (template.kind === "team-preview") {
+      throw new Error("The team preview must be rendered from the whole team.");
+    }
+
+    if (template.kind === "pokemon-name") {
+      const namePlate = await this.createPokemonName(set, template);
+      const species = ADV_DEX.species.get(set.species ?? "");
+      return this.exportPanel(
+        namePlate.stage,
+        { width: namePlate.width, height: template.height },
+        options.scale,
+        {
+          sourceSetIndex,
+          set,
+          speciesId: species.id,
+          label: set.name || species.name || set.species || "Unknown Pokémon",
+          filenameStem: `${String(sourceSetIndex + 1).padStart(2, "0")}-${species.id}-name`,
+        },
+      );
+    }
+
+    if (template.kind === "pokemon-spotlight") {
+      const stage = await this.createPokemonSpotlight(set, template);
+      const species = ADV_DEX.species.get(set.species ?? "");
+      return this.exportPanel(stage, template, options.scale, {
+        sourceSetIndex,
+        set,
+        speciesId: species.id,
+        label: set.name || species.name || set.species || "Unknown Pokémon",
+        filenameStem: `${String(sourceSetIndex + 1).padStart(2, "0")}-${species.id}-spotlight`,
+      });
+    }
+
+    if (template.kind === "pokemon-spotlight-small") {
+      const stage = await this.createPokemonSpotlightSmall(set, template);
+      const species = ADV_DEX.species.get(set.species ?? "");
+      return this.exportPanel(stage, template, options.scale, {
+        sourceSetIndex,
+        set,
+        speciesId: species.id,
+        label: set.name || species.name || set.species || "Unknown Pokémon",
+        filenameStem: `${String(sourceSetIndex + 1).padStart(2, "0")}-${species.id}-spotlight-small`,
+      });
+    }
 
     const stage = await this.createPanel(set, template);
+    const species = ADV_DEX.species.get(set.species ?? "");
+    const templateSuffix = template.filenameSuffix
+      ? `-${template.filenameSuffix}`
+      : "";
+    return this.exportPanel(stage, template, options.scale, {
+      sourceSetIndex,
+      set,
+      speciesId: species.id,
+      label: set.name || species.name || set.species || "Unknown Pokémon",
+      filenameStem: `${String(sourceSetIndex + 1).padStart(2, "0")}-${species.id}${templateSuffix}`,
+    });
+  }
+
+  async renderTeam(
+    sets: Partial<PokemonSet>[],
+    teamName: string,
+    options: RenderOptions,
+  ): Promise<RenderedPanel> {
+    await this.init();
+    const template = TEMPLATES.get(options.templateId);
+    if (!template) throw new Error(`Unknown template: ${options.templateId}`);
+    if (template.kind !== "team-preview") {
+      throw new Error("The selected template is not a team preview.");
+    }
+
+    const displayName = teamName.trim() || "UNTITLED TEAM";
+    const filenameName =
+      displayName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "team";
+    const stage = await this.createTeamPreview(sets, displayName, template);
+    return this.exportPanel(stage, template, options.scale, {
+      sourceSetIndex: 0,
+      set: sets[0] ?? {},
+      speciesId: "team",
+      label: displayName,
+      filenameStem: `${filenameName}-team-preview`,
+    });
+  }
+
+  private async exportPanel(
+    stage: Container,
+    dimensions: { width: number; height: number },
+    scale: 1 | 2 | 3,
+    metadata: Pick<
+      RenderedPanel,
+      "sourceSetIndex" | "set" | "speciesId" | "label"
+    > & { filenameStem: string },
+  ): Promise<RenderedPanel> {
     const target = RenderTexture.create({
-      width: template.width,
-      height: template.height,
+      width: dimensions.width,
+      height: dimensions.height,
       resolution: 1,
     });
     this.app.renderer.render({ container: stage, target, clear: true });
 
     const extracted = this.app.renderer.extract.canvas(target);
     const canvas = document.createElement("canvas");
-    canvas.width = template.width * options.scale;
-    canvas.height = template.height * options.scale;
+    canvas.width = dimensions.width * scale;
+    canvas.height = dimensions.height * scale;
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Canvas rendering is unavailable.");
     context.imageSmoothingEnabled = false;
@@ -120,17 +229,17 @@ export class PanelRenderer {
     );
 
     const blob = await canvasToBlob(canvas);
-    const species = ADV_DEX.species.get(set.species ?? "");
-    const scaleSuffix = options.scale === 1 ? "" : `-${options.scale}x`;
-    const filename = `${String(sourceSetIndex + 1).padStart(2, "0")}-${species.id}${scaleSuffix}.png`;
+    const scaleSuffix = scale === 1 ? "" : `-${scale}x`;
+    const filename = `${metadata.filenameStem}${scaleSuffix}.png`;
 
     stage.destroy({ children: true });
     target.destroy(true);
 
     return {
-      sourceSetIndex,
-      set,
-      speciesId: species.id,
+      sourceSetIndex: metadata.sourceSetIndex,
+      set: metadata.set,
+      speciesId: metadata.speciesId,
+      label: metadata.label,
       width: canvas.width,
       height: canvas.height,
       blob,
@@ -147,7 +256,139 @@ export class PanelRenderer {
 
   private async createPanel(
     set: Partial<PokemonSet>,
-    template: TemplateDefinition,
+    template: PokemonOverviewTemplateDefinition | StatPreviewTemplateDefinition,
+  ): Promise<Container> {
+    if (template.kind === "stat-preview") {
+      return this.createStatPreview(set, template);
+    }
+    return this.createPokemonOverview(set, template);
+  }
+
+  private async createTeamPreview(
+    sets: Partial<PokemonSet>[],
+    teamName: string,
+    template: TeamPreviewTemplateDefinition,
+  ): Promise<Container> {
+    const stage = new Container();
+    if (template.background) {
+      stage.addChild(await this.createAssetSprite(template.background));
+    }
+
+    stage.addChild(
+      await this.largeFont.create(
+        normalizedPanelText(teamName),
+        template.text.name,
+      ),
+    );
+
+    for (
+      let index = 0;
+      index < Math.min(sets.length, template.iconSlots.length);
+      index += 1
+    ) {
+      const set = sets[index];
+      const icon = await this.createAssetSprite(
+        showdownAssets.pokemonIcon(set.species ?? "", set.gender),
+      );
+      icon.x = template.iconSlots[index].x;
+      icon.y = template.iconSlots[index].y;
+      stage.addChild(icon);
+    }
+
+    return stage;
+  }
+
+  private async createPokemonName(
+    set: Partial<PokemonSet>,
+    template: PokemonNameTemplateDefinition,
+  ): Promise<{ stage: Container; width: number }> {
+    const stage = new Container();
+    const species = ADV.species.get(set.species ?? "");
+    const displayName = normalizedPanelText(
+      set.name || species?.name || set.species || "UNKNOWN",
+    );
+    const textWidth = this.pokemonNameFont.measure(displayName);
+    const width = Math.max(
+      template.capWidth * 2,
+      textWidth + template.capWidth * 2 + template.paddingX * 2,
+    );
+
+    const texture = await Assets.load<Texture>(template.background.url);
+    texture.source.scaleMode = "nearest";
+    const background = new NineSliceSprite({
+      texture,
+      leftWidth: template.capWidth,
+      rightWidth: template.capWidth,
+      topHeight: template.capWidth,
+      bottomHeight: template.capWidth,
+    });
+    background.width = width;
+    background.height = template.height;
+    stage.addChild(background);
+
+    stage.addChild(
+      await this.pokemonNameFont.create(displayName, {
+        x: template.capWidth + template.paddingX,
+        y: template.textY,
+        maxWidth: textWidth,
+        size: 16,
+        color: 0xffffff,
+      }),
+    );
+
+    return { stage, width };
+  }
+
+  private async createPokemonSpotlight(
+    set: Partial<PokemonSet>,
+    template: PokemonSpotlightTemplateDefinition,
+  ): Promise<Container> {
+    const stage = new Container();
+    if (template.background) {
+      stage.addChild(await this.createAssetSprite(template.background));
+    }
+
+    const sprite = await this.createAssetSprite(
+      showdownAssets.pokemonSprite(set.species ?? "", { shiny: set.shiny }),
+    );
+    sprite.x = template.sprite.x;
+    sprite.y = template.sprite.y;
+    const mask = new Graphics()
+      .rect(
+        template.spriteMask.x,
+        template.spriteMask.y,
+        template.spriteMask.width,
+        template.spriteMask.height,
+      )
+      .fill(0xffffff);
+    sprite.mask = mask;
+    stage.addChild(mask, sprite);
+
+    return stage;
+  }
+
+  private async createPokemonSpotlightSmall(
+    set: Partial<PokemonSet>,
+    template: PokemonSpotlightSmallTemplateDefinition,
+  ): Promise<Container> {
+    const stage = new Container();
+    if (template.background) {
+      stage.addChild(await this.createAssetSprite(template.background));
+    }
+
+    const icon = await this.createAssetSprite(
+      showdownAssets.pokemonIcon(set.species ?? "", set.gender),
+    );
+    icon.x = template.icon.x;
+    icon.y = template.icon.y;
+    stage.addChild(icon);
+
+    return stage;
+  }
+
+  private async createPokemonOverview(
+    set: Partial<PokemonSet>,
+    template: PokemonOverviewTemplateDefinition,
   ): Promise<Container> {
     const stage = new Container();
 
@@ -273,6 +514,89 @@ export class PanelRenderer {
         );
       }
     }
+
+    return stage;
+  }
+
+  private async createStatPreview(
+    set: Partial<PokemonSet>,
+    template: StatPreviewTemplateDefinition,
+  ): Promise<Container> {
+    const stage = new Container();
+    if (template.background) {
+      stage.addChild(await this.createAssetSprite(template.background));
+    }
+
+    const species = ADV.species.get(set.species ?? "");
+    if (!species) return stage;
+
+    const nature = ADV.natures.get(set.nature ?? "Serious");
+    const level = set.level ?? 100;
+    const ivs = {
+      hp: set.ivs?.hp ?? 31,
+      atk: set.ivs?.atk ?? 31,
+      def: set.ivs?.def ?? 31,
+      spa: set.ivs?.spa ?? 31,
+      spd: set.ivs?.spd ?? 31,
+      spe: set.ivs?.spe ?? 31,
+    };
+
+    for (const stat of STAT_IDS) {
+      const row = template.statRows[stat];
+      const ev = set.evs?.[stat] ?? 0;
+      const total = ADV.stats.calc(
+        stat,
+        species.baseStats[stat],
+        ivs[stat],
+        ev,
+        level,
+        nature,
+      );
+      const natureSign =
+        nature?.plus === stat ? "+" : nature?.minus === stat ? "-" : "";
+
+      stage.addChild(createStatBar(total, stat, level, row.bar));
+      stage.addChild(
+        await this.font.create(
+          String(species.baseStats[stat]),
+          shiftedSlot(template.text.value, row.base.x, row.base.y),
+        ),
+        await this.font.create(
+          String(ev),
+          shiftedSlot(template.text.ev, row.ev.x, row.ev.y),
+        ),
+        await this.font.create(
+          natureSign,
+          shiftedSlot(
+            template.text.natureSign,
+            template.text.natureSign.x,
+            row.ev.y,
+          ),
+        ),
+        await this.font.create(
+          String(ivs[stat]).padStart(2, "0"),
+          shiftedSlot(template.text.iv, row.iv.x, row.iv.y),
+        ),
+        await this.font.create(
+          String(total),
+          shiftedSlot(template.text.value, row.total.x, row.total.y),
+        ),
+      );
+    }
+
+    stage.addChild(
+      await this.font.create(
+        normalizedPanelText(nature?.name ?? set.nature ?? "SERIOUS"),
+        template.text.nature,
+      ),
+    );
+
+    const hiddenPowerIcon = await this.createAssetSprite(
+      showdownAssets.typeIcon(ADV_DEX.getHiddenPower(ivs).type),
+    );
+    hiddenPowerIcon.x = template.hiddenPowerIcon.x;
+    hiddenPowerIcon.y = template.hiddenPowerIcon.y;
+    stage.addChild(hiddenPowerIcon);
 
     return stage;
   }

@@ -230,6 +230,11 @@ export const POKEMON_NAME_FONT: BitmapFontDefinition = {
 
 export const TITLE_FONT: BitmapFontDefinition = {
   ...POKEMON_NAME_FONT,
+  glyphs: POKEMON_NAME_FONT.glyphs.map((glyph) =>
+    /^\p{N}$/u.test(glyph.token)
+      ? { ...glyph, offsetY: (glyph.offsetY ?? 0) - 1 }
+      : glyph,
+  ),
   textTransform: "preserve",
 };
 

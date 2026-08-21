@@ -254,6 +254,18 @@ describe("render templates", () => {
     ).toBe(6);
   });
 
+  it("aligns title digits with capital letters", () => {
+    expect(
+      TITLE_FONT.glyphs.find((glyph) => glyph.token === "A")?.offsetY,
+    ).toBe(8);
+    expect(
+      TITLE_FONT.glyphs.find((glyph) => glyph.token === "1")?.offsetY,
+    ).toBe(8);
+    expect(
+      POKEMON_NAME_FONT.glyphs.find((glyph) => glyph.token === "1")?.offsetY,
+    ).toBe(9);
+  });
+
   it("requires explicit bracketed tokens for font icons", () => {
     const font = new BitmapFontRenderer(SMALL_FONT);
     expect(font.measure("ID")).toBe(9);

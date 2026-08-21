@@ -58,7 +58,7 @@ describe("render templates", () => {
       width: 43,
       height: 47,
       filenameSuffix: "spotlight-small",
-      icon: { x: 2, y: 9 },
+      icon: { x: 6, y: 4 },
     });
   });
 
@@ -170,7 +170,14 @@ describe("render templates", () => {
     if (TEAM_PREVIEW_TEMPLATE.kind !== "team-preview") {
       throw new Error("Expected the team-preview template.");
     }
-    expect(TEAM_PREVIEW_TEMPLATE.iconSlots).toHaveLength(6);
+    expect(TEAM_PREVIEW_TEMPLATE.iconSlots).toEqual([
+      { x: 12, y: 21 },
+      { x: 53, y: 21 },
+      { x: 94, y: 21 },
+      { x: 135, y: 21 },
+      { x: 176, y: 21 },
+      { x: 217, y: 21 },
+    ]);
   });
 
   it("matches the native stat-preview asset dimensions", () => {

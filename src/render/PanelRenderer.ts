@@ -24,6 +24,8 @@ import {
   smallFontText,
 } from "./moveText";
 import { showdownStatBarScale } from "./statBarScale";
+import { encodeAnimatedGif } from "./gifEncoder";
+import { loadMenuSpriteFrames } from "./menuSpriteFrames";
 import {
   GENERIC_TEXT_TEMPLATE,
   MOVE_OVERVIEW_TEMPLATE,
@@ -51,6 +53,7 @@ import type {
   PokemonSpotlightSmallTemplateDefinition,
   PokemonSpotlightTemplateDefinition,
   MoveOverviewTemplateDefinition,
+  Point,
 } from "./types";
 
 const ADV = new Generations(Dex).get(3);
@@ -169,14 +172,34 @@ export class PanelRenderer {
     }
 
     if (template.kind === "pokemon-spotlight-small") {
-      const stage = await this.createPokemonSpotlightSmall(set, template);
       const species = ADV_DEX.species.get(set.species ?? "");
-      return this.exportPanel(stage, template, options.scale, {
+      const metadata = {
         sourceSetIndex,
         set,
         speciesId: species.id,
         label: set.name || species.name || set.species || "Unknown Pokémon",
         filenameStem: `${String(sourceSetIndex + 1).padStart(2, "0")}-${species.id}-spotlight-small`,
+      };
+      if (options.menuSpriteOutput === "gif") {
+        const animation = await loadMenuSpriteFrames(
+          showdownAssets.pokemonMenuSprite(set.species ?? "").url,
+        );
+        const stages = await Promise.all(
+          [0, 1].map((frame) =>
+            this.createPokemonSpotlightSmall(set, template, frame),
+          ),
+        );
+        return this.exportAnimatedPanel(
+          stages,
+          template,
+          options.scale,
+          metadata,
+          animation.delay,
+        );
+      }
+      const stage = await this.createPokemonSpotlightSmall(set, template, 0);
+      return this.exportPanel(stage, template, options.scale, {
+        ...metadata,
       });
     }
 
@@ -212,14 +235,39 @@ export class PanelRenderer {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "") || "team";
-    const stage = await this.createTeamPreview(sets, displayName, template);
-    return this.exportPanel(stage, template, options.scale, {
+    const metadata = {
       sourceSetIndex: 0,
       set: sets[0] ?? {},
       speciesId: "team",
       label: displayName,
       filenameStem: `${filenameName}-team-preview`,
-    });
+    };
+    if (options.menuSpriteOutput === "gif") {
+      const animations = await Promise.all(
+        sets.map((set) =>
+          loadMenuSpriteFrames(
+            showdownAssets.pokemonMenuSprite(set.species ?? "").url,
+          ),
+        ),
+      );
+      const delay = animations.length
+        ? Math.max(...animations.map((animation) => animation.delay))
+        : 170;
+      const stages = await Promise.all(
+        [0, 1].map((frame) =>
+          this.createTeamPreview(sets, displayName, template, frame),
+        ),
+      );
+      return this.exportAnimatedPanel(
+        stages,
+        template,
+        options.scale,
+        metadata,
+        delay,
+      );
+    }
+    const stage = await this.createTeamPreview(sets, displayName, template, 0);
+    return this.exportPanel(stage, template, options.scale, metadata);
   }
 
   async renderMove(
@@ -353,6 +401,64 @@ export class PanelRenderer {
       "sourceSetIndex" | "set" | "speciesId" | "label"
     > & { filenameStem: string },
   ): Promise<RenderedPanel> {
+    const canvas = this.renderStageToCanvas(stage, dimensions, scale);
+
+    const blob = await canvasToBlob(canvas);
+    const scaleSuffix = scale === 1 ? "" : `-${scale}x`;
+    const filename = `${metadata.filenameStem}${scaleSuffix}.png`;
+
+    stage.destroy({ children: true });
+    return {
+      sourceSetIndex: metadata.sourceSetIndex,
+      set: metadata.set,
+      speciesId: metadata.speciesId,
+      label: metadata.label,
+      width: canvas.width,
+      height: canvas.height,
+      blob,
+      previewUrl: URL.createObjectURL(blob),
+      filename,
+      format: "PNG",
+    };
+  }
+
+  private exportAnimatedPanel(
+    stages: Container[],
+    dimensions: { width: number; height: number },
+    scale: RenderScale,
+    metadata: Pick<
+      RenderedPanel,
+      "sourceSetIndex" | "set" | "speciesId" | "label"
+    > & { filenameStem: string },
+    delay: number,
+  ): RenderedPanel {
+    const canvases = stages.map((stage) =>
+      this.renderStageToCanvas(stage, dimensions, scale),
+    );
+    const blob = encodeAnimatedGif(canvases, delay);
+    const scaleSuffix = scale === 1 ? "" : `-${scale}x`;
+
+    for (const stage of stages) stage.destroy({ children: true });
+
+    return {
+      sourceSetIndex: metadata.sourceSetIndex,
+      set: metadata.set,
+      speciesId: metadata.speciesId,
+      label: metadata.label,
+      width: canvases[0].width,
+      height: canvases[0].height,
+      blob,
+      previewUrl: URL.createObjectURL(blob),
+      filename: `${metadata.filenameStem}${scaleSuffix}.gif`,
+      format: "GIF",
+    };
+  }
+
+  private renderStageToCanvas(
+    stage: Container,
+    dimensions: { width: number; height: number },
+    scale: RenderScale,
+  ): HTMLCanvasElement {
     const target = RenderTexture.create({
       width: dimensions.width,
       height: dimensions.height,
@@ -374,25 +480,8 @@ export class PanelRenderer {
       canvas.width,
       canvas.height,
     );
-
-    const blob = await canvasToBlob(canvas);
-    const scaleSuffix = scale === 1 ? "" : `-${scale}x`;
-    const filename = `${metadata.filenameStem}${scaleSuffix}.png`;
-
-    stage.destroy({ children: true });
     target.destroy(true);
-
-    return {
-      sourceSetIndex: metadata.sourceSetIndex,
-      set: metadata.set,
-      speciesId: metadata.speciesId,
-      label: metadata.label,
-      width: canvas.width,
-      height: canvas.height,
-      blob,
-      previewUrl: URL.createObjectURL(blob),
-      filename,
-    };
+    return canvas;
   }
 
   destroy(): void {
@@ -415,6 +504,7 @@ export class PanelRenderer {
     sets: Partial<PokemonSet>[],
     teamName: string,
     template: TeamPreviewTemplateDefinition,
+    frame: number,
   ): Promise<Container> {
     const stage = new Container();
     if (template.background) {
@@ -434,11 +524,11 @@ export class PanelRenderer {
       index += 1
     ) {
       const set = sets[index];
-      const icon = await this.createAssetSprite(
-        showdownAssets.pokemonIcon(set.species ?? "", set.gender),
+      const icon = await this.createMenuSprite(
+        showdownAssets.pokemonMenuSprite(set.species ?? ""),
+        frame,
+        template.iconSlots[index],
       );
-      icon.x = template.iconSlots[index].x;
-      icon.y = template.iconSlots[index].y;
       stage.addChild(icon);
     }
 
@@ -570,17 +660,18 @@ export class PanelRenderer {
   private async createPokemonSpotlightSmall(
     set: Partial<PokemonSet>,
     template: PokemonSpotlightSmallTemplateDefinition,
+    frame: number,
   ): Promise<Container> {
     const stage = new Container();
     if (template.background) {
       stage.addChild(await this.createAssetSprite(template.background));
     }
 
-    const icon = await this.createAssetSprite(
-      showdownAssets.pokemonIcon(set.species ?? "", set.gender),
+    const icon = await this.createMenuSprite(
+      showdownAssets.pokemonMenuSprite(set.species ?? ""),
+      frame,
+      template.icon,
     );
-    icon.x = template.icon.x;
-    icon.y = template.icon.y;
     stage.addChild(icon);
 
     return stage;
@@ -883,5 +974,24 @@ export class PanelRenderer {
       ),
     });
     return new Sprite(texture);
+  }
+
+  private async createMenuSprite(
+    asset: AssetSource,
+    frameIndex: number,
+    slot: Point,
+  ): Promise<Sprite> {
+    const animation = await loadMenuSpriteFrames(asset.url);
+    const frame = animation.frames[frameIndex % animation.frames.length];
+    const texture = Texture.from(frame);
+    texture.source.scaleMode = "nearest";
+    const sprite = new Sprite(texture);
+    sprite.x =
+      slot.x +
+      Math.round((frame.width - animation.bounds.width) / 2) -
+      animation.bounds.x;
+    sprite.y =
+      slot.y + frame.height - (animation.bounds.y + animation.bounds.height);
+    return sprite;
   }
 }

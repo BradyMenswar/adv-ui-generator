@@ -17,3 +17,8 @@ The locally mirrored sprite and icon resources under
 names, characters, and artwork are trademarks or copyrights of their
 respective owners. This fan project is not affiliated with or endorsed by
 Pokémon Showdown, Nintendo, Game Freak, or The Pokémon Company.
+
+The animated menu sprites under `public/assets/bulbagarden/menu` are mirrored
+from Bulbagarden Archives. Their file pages identify them as sprites from the
+Pokémon games and claim fair use. They remain copyrights of their respective
+owners; Bulbagarden is the archive source, not the copyright owner.

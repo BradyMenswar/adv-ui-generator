@@ -18,10 +18,13 @@
     "@pkmn/dex": "0.10.11",
     "@pkmn/img": "0.3.4",
     "@pkmn/sets": "5.2.0",
-    "pixi.js": "^8.8.1"
+    "gifenc": "^1.0.3",
+    "pixi.js": "^8.8.1",
+    "upng-js": "^2.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
+    "@types/upng-js": "^2.1.5",
     "eslint": "^9.21.0",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.2.6",

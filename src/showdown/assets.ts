@@ -2,6 +2,7 @@ import { Icons, Sprites } from "@pkmn/img";
 
 import { publicAssetUrl } from "../render/publicAssetUrl";
 import type { AssetSource } from "../render/types";
+import { ADV_DEX } from "./team";
 
 const TYPE_SHEET = publicAssetUrl("/assets/ui/types.png");
 const MOVE_CATEGORY_SHEET = publicAssetUrl("/assets/ui/move-categories.png");
@@ -29,6 +30,14 @@ const MOVE_CATEGORY_FRAMES: Record<string, { x: number; y: number }> = {
   physical: { x: 32, y: 0 },
   status: { x: 64, y: 0 },
 };
+const MENU_SPRITE_FORMS: Record<string, string> = {
+  castformsunny: "351S",
+  castformrainy: "351R",
+  castformsnowy: "351H",
+  deoxysattack: "386A",
+  deoxysdefense: "386D",
+  deoxysspeed: "386S",
+};
 
 function localizeShowdownUrl(url: string): string {
   const parsed = new URL(url);
@@ -54,6 +63,15 @@ export const showdownAssets = {
     return {
       url: localizeShowdownUrl(icon.url),
       frame: { x: -icon.left, y: -icon.top, width: 40, height: 30 },
+    };
+  },
+
+  pokemonMenuSprite(species: string): AssetSource {
+    const pokemon = ADV_DEX.species.get(species);
+    const number =
+      MENU_SPRITE_FORMS[pokemon.id] ?? String(pokemon.num).padStart(3, "0");
+    return {
+      url: publicAssetUrl(`/assets/bulbagarden/menu/Ani${number}MS.png`),
     };
   },
 

@@ -76,7 +76,7 @@ export class App {
           <textarea id="team-input" spellcheck="false" placeholder="Paste a Pokémon Showdown team here…"></textarea>
           <div class="form-row">
             <div class="option-field">
-              <label for="scale-select">PNG size</label>
+              <label for="scale-select">Output size</label>
               <select id="scale-select">
                 <option value="1">Native</option>
                 <option value="2">2×</option>
@@ -247,9 +247,9 @@ export class App {
       case 6:
       case 8:
       case 10:
-        return { scale: scaleValue };
+        return { scale: scaleValue, menuSpriteOutput: "png" };
       default:
-        return { scale: 1 };
+        return { scale: 1, menuSpriteOutput: "png" };
     }
   }
 
@@ -342,23 +342,37 @@ export class App {
           template.kind === "generic-text"
         )
           continue;
-        try {
-          const panel = await this.renderer.render(
-            selectedSet,
-            this.selectedSetIndex,
-            { ...this.renderOptions, templateId: template.id },
-          );
-          this.renderedEntries.push({
-            panel,
-            title: template.label,
-            templateId: template.id,
-            scope: "pokemon",
-          });
-        } catch (error) {
-          renderIssues.push({
-            setIndex: this.selectedSetIndex,
-            message: `${template.label}: ${error instanceof Error ? error.message : "Rendering failed."}`,
-          });
+        const outputs =
+          template.kind === "pokemon-spotlight-small"
+            ? (["png", "gif"] as const)
+            : (["png"] as const);
+        for (const menuSpriteOutput of outputs) {
+          const title =
+            outputs.length === 1
+              ? template.label
+              : `${template.label} (${menuSpriteOutput.toUpperCase()})`;
+          try {
+            const panel = await this.renderer.render(
+              selectedSet,
+              this.selectedSetIndex,
+              {
+                ...this.renderOptions,
+                templateId: template.id,
+                menuSpriteOutput,
+              },
+            );
+            this.renderedEntries.push({
+              panel,
+              title,
+              templateId: template.id,
+              scope: "pokemon",
+            });
+          } catch (error) {
+            renderIssues.push({
+              setIndex: this.selectedSetIndex,
+              message: `${title}: ${error instanceof Error ? error.message : "Rendering failed."}`,
+            });
+          }
         }
       }
 
@@ -385,25 +399,32 @@ export class App {
         }
       }
 
-      try {
-        const validSets = this.validSetIndexes.map(
-          (index) => this.parsedSets[index],
-        );
-        const panel = await this.renderer.renderTeam(
-          validSets,
-          this.teamNameInput.value,
-          { ...this.renderOptions, templateId: TEAM_PREVIEW_TEMPLATE.id },
-        );
-        this.renderedEntries.push({
-          panel,
-          title: TEAM_PREVIEW_TEMPLATE.label,
-          templateId: TEAM_PREVIEW_TEMPLATE.id,
-          scope: "team",
-        });
-      } catch (error) {
-        renderIssues.push({
-          message: `Team preview: ${error instanceof Error ? error.message : "Rendering failed."}`,
-        });
+      const validSets = this.validSetIndexes.map(
+        (index) => this.parsedSets[index],
+      );
+      for (const menuSpriteOutput of ["png", "gif"] as const) {
+        const title = `${TEAM_PREVIEW_TEMPLATE.label} (${menuSpriteOutput.toUpperCase()})`;
+        try {
+          const panel = await this.renderer.renderTeam(
+            validSets,
+            this.teamNameInput.value,
+            {
+              ...this.renderOptions,
+              templateId: TEAM_PREVIEW_TEMPLATE.id,
+              menuSpriteOutput,
+            },
+          );
+          this.renderedEntries.push({
+            panel,
+            title,
+            templateId: TEAM_PREVIEW_TEMPLATE.id,
+            scope: "team",
+          });
+        } catch (error) {
+          renderIssues.push({
+            message: `${title}: ${error instanceof Error ? error.message : "Rendering failed."}`,
+          });
+        }
       }
 
       this.showIssues([...this.parseIssues, ...renderIssues]);
@@ -528,7 +549,9 @@ export class App {
     const countParts = [
       pokemonEntries.length ? `${pokemonEntries.length} Pokémon assets` : "",
       moveEntries.length ? `${moveEntries.length} move assets` : "",
-      teamEntries.length ? `${teamEntries.length} team asset` : "",
+      teamEntries.length
+        ? `${teamEntries.length} team ${teamEntries.length === 1 ? "asset" : "assets"}`
+        : "",
       standaloneEntries.length
         ? `${standaloneEntries.length} standalone ${standaloneEntries.length === 1 ? "asset" : "assets"}`
         : "",
@@ -579,7 +602,7 @@ export class App {
         teamEntries.length
           ? `<section class="asset-group team-asset-group" aria-labelledby="team-assets-heading">
               <div class="asset-group-heading">
-                <h3 id="team-assets-heading">Team asset</h3>
+                <h3 id="team-assets-heading">Team assets</h3>
                 <span>Shared by the full team</span>
               </div>
               <div class="asset-grid asset-grid--team">
@@ -617,13 +640,13 @@ export class App {
     return `<article class="result-item${wideClass}">
       <div class="result-title">
         <h4>${escapeHtml(entry.title)}</h4>
-        <span>${panel.width}×${panel.height} PNG</span>
+        <span>${panel.width}×${panel.height} ${panel.format}</span>
       </div>
       <div class="preview-stage">
         <img src="${panel.previewUrl}" alt="${escapeHtml(entry.title)} for ${escapeHtml(panel.label)}" width="${panel.width}" height="${panel.height}">
       </div>
       <div class="result-actions">
-        <button type="button" data-copy="${index}">Copy PNG</button>
+        <button type="button" data-copy="${index}">Copy ${panel.format}</button>
         <button type="button" data-download="${index}">Download</button>
         <span class="action-status" id="action-status-${index}" aria-live="polite"></span>
       </div>
@@ -643,11 +666,14 @@ export class App {
     }
     try {
       await navigator.clipboard.write([
-        new ClipboardItem({ "image/png": panel.blob }),
+        new ClipboardItem({ [panel.blob.type]: panel.blob }),
       ]);
       status.textContent = "Copied";
     } catch {
-      status.textContent = "Copy was blocked—use Download.";
+      status.textContent =
+        panel.format === "GIF"
+          ? "Animated GIF copy is unsupported here—use Download."
+          : "Copy was blocked—use Download.";
     }
   }
 

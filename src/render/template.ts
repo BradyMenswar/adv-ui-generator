@@ -607,6 +607,10 @@ export const STAT_PREVIEW_TEMPLATE: TemplateDefinition = {
   },
 };
 
+const SMALL_SPOTLIGHT_ICON_SLOT = { x: 6, y: 4 };
+const TEAM_PREVIEW_SQUARE_OFFSET = { x: 6, y: 17 };
+const TEAM_PREVIEW_SQUARE_STEP = 41;
+
 export const TEAM_PREVIEW_TEMPLATE: TemplateDefinition = {
   id: "adv-team-preview",
   label: "Team preview",
@@ -615,14 +619,13 @@ export const TEAM_PREVIEW_TEMPLATE: TemplateDefinition = {
   height: 67,
   filenameSuffix: "team-preview",
   background: { url: teamPreviewBackgroundUrl },
-  iconSlots: [
-    { x: 8, y: 28 },
-    { x: 49, y: 28 },
-    { x: 90, y: 28 },
-    { x: 131, y: 28 },
-    { x: 172, y: 28 },
-    { x: 213, y: 28 },
-  ],
+  iconSlots: Array.from({ length: 6 }, (_, index) => ({
+    x:
+      TEAM_PREVIEW_SQUARE_OFFSET.x +
+      SMALL_SPOTLIGHT_ICON_SLOT.x +
+      TEAM_PREVIEW_SQUARE_STEP * index,
+    y: TEAM_PREVIEW_SQUARE_OFFSET.y + SMALL_SPOTLIGHT_ICON_SLOT.y,
+  })),
   text: {
     name: { x: 10, y: 1, maxWidth: 241, size: 16, color: 0xffffff },
   },
@@ -693,7 +696,7 @@ export const POKEMON_SPOTLIGHT_SMALL_TEMPLATE: TemplateDefinition = {
   height: 47,
   filenameSuffix: "spotlight-small",
   background: { url: pokemonSpotlightSmallBackgroundUrl },
-  icon: { x: 2, y: 9 },
+  icon: { ...SMALL_SPOTLIGHT_ICON_SLOT },
 };
 
 export const MOVE_OVERVIEW_TEMPLATE: TemplateDefinition = {

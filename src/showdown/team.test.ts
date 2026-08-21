@@ -83,6 +83,12 @@ describe("Showdown asset adapter", () => {
     expect(showdownAssets.pokemonSprite("Tyranitar", { shiny: true }).url).toBe(
       "/assets/showdown/sprites/gen3-shiny/tyranitar.png",
     );
+    expect(showdownAssets.pokemonMenuSprite("Tyranitar").url).toBe(
+      "/assets/bulbagarden/menu/Ani248MS.png",
+    );
+    expect(showdownAssets.pokemonMenuSprite("Deoxys-Attack").url).toBe(
+      "/assets/bulbagarden/menu/Ani386AMS.png",
+    );
   });
 
   it("preserves Showdown item and Pokémon sheet coordinates", () => {

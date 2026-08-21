@@ -175,10 +175,12 @@ export interface BitmapFontDefinition {
 }
 
 export type RenderScale = 1 | 2 | 3 | 4 | 6 | 8 | 10;
+export type MenuSpriteOutput = "png" | "gif";
 
 export interface RenderOptions {
   templateId: string;
   scale: RenderScale;
+  menuSpriteOutput: MenuSpriteOutput;
 }
 
 export interface RenderedPanel {
@@ -191,4 +193,5 @@ export interface RenderedPanel {
   blob: Blob;
   previewUrl: string;
   filename: string;
+  format: "PNG" | "GIF";
 }
